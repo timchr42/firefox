@@ -266,6 +266,9 @@ public final class GeckoRuntime implements Parcelable {
   private final CrashPullController.CrashPullProxy mCrashPullProxy;
   private final GeckoScreenChangeListener mScreenChangeListener;
 
+  // ADDED: PolicyManager
+  private PolicyManager mPolicyManager;
+
   private GeckoRuntime() {
     mWebExtensionController = new WebExtensionController(this);
     mContentBlockingController = new ContentBlockingController();
@@ -277,6 +280,8 @@ public final class GeckoRuntime implements Parcelable {
       throw new IllegalStateException("Only one GeckoRuntime instance is allowed");
     }
     sRuntime = this;
+    Log.d(LOGTAG, "TEST");
+
   }
 
   @WrapForJNI
@@ -452,7 +457,11 @@ public final class GeckoRuntime implements Parcelable {
     if (DEBUG) {
       Log.d(LOGTAG, "init");
     }
+
     int flags = 0;
+
+    // Initialize PolicyManager with the provided context
+    mPolicyManager = new PolicyManager(context);
 
     if (settings.getPauseForDebuggerEnabled()) {
       flags |= GeckoThread.FLAG_DEBUGGING;
@@ -695,6 +704,11 @@ public final class GeckoRuntime implements Parcelable {
 
     if (mScreenChangeListener != null) {
       mScreenChangeListener.disable();
+    }
+
+    // Unregister the PolicyManager if Runtime shut down
+    if (mPolicyManager != null) {
+      mPolicyManager.shutdown();
     }
 
     GeckoThread.forceQuit();
