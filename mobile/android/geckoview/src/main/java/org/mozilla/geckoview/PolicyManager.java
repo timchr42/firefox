@@ -6,7 +6,9 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.util.Log;
 
+import org.json.JSONArray;
 import org.json.JSONObject;
+import org.json.JSONException;
 import java.util.List;
 import java.util.Map;
 
@@ -85,14 +87,53 @@ public class PolicyManager {
             Log.d(LOGTAG, "Successfully generated tokens for " + capabilityTokensByDomain.size() + " domains for " + packageName);
             logTokens(capabilityTokensByDomain, packageName);
 
-            // TODO:
-            // 1. Store the tokens in secure storage (organized by domain)
-            // 2. Pass them to native code via JNI
-            // 3. Associate them with the package for future validation
+            // Send tokens back to the requesting app
+            sendTokensToApp(capabilityTokensByDomain, packageName);
 
         } else {
             Log.e(LOGTAG, "Failed to generate capability tokens for " + packageName);
         }
+    }
+
+    /**
+     * Send capability tokens back to the requesting app via broadcast
+     */
+    private void sendTokensToApp(Map<String, List<String>> tokensByDomain, String packageName) {
+        try {
+            Intent responseIntent = new Intent("org.mozilla.geckoview.CAPABILITY_TOKENS");
+            responseIntent.setPackage(packageName); // Send only to requesting app
+
+            // Convert tokens map to JSON for transmission
+            JSONObject tokensJson = tokensMapToJson(tokensByDomain);
+
+            responseIntent.putExtra("capability_tokens", tokensJson.toString());
+            responseIntent.putExtra("status", "success");
+            responseIntent.putExtra("timestamp", System.currentTimeMillis());
+
+            Log.d(LOGTAG, "Sent capability tokens to " + packageName);
+            mContext.sendBroadcast(responseIntent);
+
+        } catch (Exception e) {
+            Log.e(LOGTAG, "Failed to send tokens to " + packageName, e);
+            
+            // Send error response
+            Intent errorIntent = new Intent("org.mozilla.geckoview.CAPABILITY_TOKENS");
+            errorIntent.setPackage(packageName);
+            errorIntent.putExtra("status", "error");
+            errorIntent.putExtra("error_message", e.getMessage());
+            mContext.sendBroadcast(errorIntent);
+        }
+    }
+
+    private JSONObject tokensMapToJson(Map<String, List<String>> tokensByDomain) throws JSONException {
+        JSONObject json = new JSONObject();
+        for (Map.Entry<String, List<String>> entry : tokensByDomain.entrySet()) {
+            String domain = entry.getKey();
+            List<String> tokens = entry.getValue();
+            JSONArray tokenArray = new JSONArray(tokens); // for (String token : tokens) { tokenArray.put(token); }
+            json.put(domain, tokenArray);
+        }
+        return json;
     }
 
     private void logTokens(Map<String, List<String>> capabilityTokensByDomain, String packageName) {
@@ -104,7 +145,8 @@ public class PolicyManager {
 
             for (int i = 0; i < tokens.size(); i++) {
                 String token = tokens.get(i);
-                Log.d(LOGTAG, "  Token " + (i + 1) + ": " + token.substring(0, Math.min(50, token.length())) + "...");
+                String compressedToken = token.substring(0, Math.min(50, token.length()));
+                Log.d(LOGTAG, "  Token " + (i + 1) + ": " + compressedToken + "...");
             }
         }
     }
