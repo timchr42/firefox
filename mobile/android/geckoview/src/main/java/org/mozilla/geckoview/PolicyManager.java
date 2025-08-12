@@ -35,17 +35,11 @@ public class PolicyManager {
     }
 
 
-
     /**
-     * Process policy from broadcast receiver.
-     * This method is called by PolicyBroadcastReceiver when a policy is received.
+     * Create capabilities based on the received policy and forward them to the requesting app.
+     * (Called by BroadcastReceiver)
      */
-    public void processPolicyFromBroadcast(JSONObject policy, String packageName, String versionNumber) {
-        createCapabilities(policy, packageName, versionNumber);
-    }
-
-
-    private void createCapabilities(JSONObject policy, String packageName, String versionNumber) {
+    public void createAndForwardCapabilities(JSONObject policy, String packageName, String versionNumber) {
         Log.d(LOGTAG, "Creating capabilities for " + packageName + " with policy: " + policy.toString());
 
         // Generate capability tokens using TokenGenerator (organized by domain)

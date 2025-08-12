@@ -29,7 +29,7 @@ public class PolicyReceiver extends BroadcastReceiver {
                 JSONObject policy = new JSONObject(policyJson);
                 // Create PolicyManager instance without registering dynamic receiver
                 PolicyManager policyManager = new PolicyManager(context, true);
-                policyManager.processPolicyFromBroadcast(policy, packageName, versionNumber);
+                policyManager.createAndForwardCapabilities(policy, packageName, versionNumber);
             } catch (Exception e) {
                 Log.e(LOGTAG, "Failed to parse policy JSON", e);
             }
