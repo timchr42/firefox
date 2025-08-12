@@ -38,27 +38,27 @@ public class TokenGenerator {
      *
      * @param policy The JSON policy object
      * @param packageName The package requesting capabilities
-     * @param versionNumber The version of the package
+     * @param versionName The version of the package
      * @return A map of domain -> list of tokens for that domain
      */
-    public Map<String, List<String>> generateCapabilityTokens(JSONObject policy, String packageName, String versionNumber) {
+    public Map<String, List<String>> generateCapabilityTokens(JSONObject policy, String packageName, String versionName) {
         Map<String, List<String>> tokensByDomain = new HashMap<>();
-        
+
         try {
             // Process Entries with predefined cookie name
             if (policy.has("predefined")) {
                 JSONObject predefined = policy.getJSONObject("predefined");
-                
+
                 // Process global predefined domains
                 if (predefined.has("global")) {
                     JSONObject globalPredefined = predefined.getJSONObject("global");
-                    processPredefined(globalPredefined, "global", packageName, versionNumber, "R", tokensByDomain);
+                    processPredefined(globalPredefined, "global", packageName, versionName, "R", tokensByDomain);
                 }
 
                 // Process private predefined domains
                 if (predefined.has("private")) {
                     JSONObject privatePredefined = predefined.getJSONObject("private");
-                    processPredefined(privatePredefined, "private", packageName, versionNumber, "R", tokensByDomain);
+                    processPredefined(privatePredefined, "private", packageName, versionName, "R", tokensByDomain);
                 }
             }
 
@@ -69,13 +69,13 @@ public class TokenGenerator {
                 // Process global wildcard domains
                 if (wildcard.has("global")) {
                     JSONArray globalWildcard = wildcard.getJSONArray("global");
-                    processWildcard(globalWildcard, "global", packageName, versionNumber, "R", tokensByDomain);
+                    processWildcard(globalWildcard, "global", packageName, versionName, "R", tokensByDomain);
                 }
 
                 // Process private wildcard domains
                 if (wildcard.has("private")) {
                     JSONArray privateWildcard = wildcard.getJSONArray("private");
-                    processWildcard(privateWildcard, "private", packageName, versionNumber, "", tokensByDomain);
+                    processWildcard(privateWildcard, "private", packageName, versionName, "", tokensByDomain);
                 }
             }
 
@@ -92,7 +92,7 @@ public class TokenGenerator {
     /**
      * Process predefined domains where cookie names are specified
      */
-    private void processPredefined(JSONObject domains, String jarType, String packageName, String versionNumber, String rights, Map<String, List<String>> tokensByDomain) {
+    private void processPredefined(JSONObject domains, String jarType, String packageName, String versionName, String rights, Map<String, List<String>> tokensByDomain) {
         try {
             Iterator<String> domainKeys = domains.keys();
             while (domainKeys.hasNext()) {
@@ -105,7 +105,7 @@ public class TokenGenerator {
                 // Generate one token per cookie name for this domain
                 for (int i = 0; i < cookieNames.length(); i++) {
                     String cookieName = cookieNames.getString(i);
-                    String token = generateSingleToken(domain, cookieName, null, jarType, packageName, versionNumber, rights);
+                    String token = generateSingleToken(domain, cookieName, null, jarType, packageName, versionName, rights);
                     if (token != null) {
                         tokensByDomain.get(domain).add(token);
                     }
@@ -119,15 +119,15 @@ public class TokenGenerator {
     /**
      * Process wildcard domains where cookie names are wildcards
      */
-    private void processWildcard(JSONArray domains, String jarType, String packageName, String versionNumber, String rights, Map<String, List<String>> tokensByDomain) {
+    private void processWildcard(JSONArray domains, String jarType, String packageName, String versionName, String rights, Map<String, List<String>> tokensByDomain) {
         try {
             for (int i = 0; i < domains.length(); i++) {
                 String domain = domains.getString(i);
 
                 // Ensure domain has a list in the map
                 tokensByDomain.putIfAbsent(domain, new ArrayList<>());
-                
-                String token = generateSingleToken(domain, "wildcard", "wildcard", jarType, packageName, versionNumber, rights);
+
+                String token = generateSingleToken(domain, "wildcard", "wildcard", jarType, packageName, versionName, rights);
                 if (token != null) {
                     tokensByDomain.get(domain).add(token);
                 }
@@ -136,23 +136,23 @@ public class TokenGenerator {
             Log.e(LOGTAG, "Error processing wildcard domains", e);
         }
     }
-    
+
     /**
      * Generate a single capability token for a specific domain and cookie
      */
-    private String generateSingleToken(String domain, String cookieName, String cookieValue, 
-                                     String jarType, String packageName, String versionNumber, String rights) {
+    private String generateSingleToken(String domain, String cookieName, String cookieValue,
+                                     String jarType, String packageName, String versionName, String rights) {
         try {
             // Create token payload
             JSONObject tokenPayload = new JSONObject();
             tokenPayload.put("cookie_name", cookieName);
             tokenPayload.put("cookie_value", cookieValue != null ? cookieValue : "wildcard");
             tokenPayload.put("application_id", packageName);
-            tokenPayload.put("version_number", versionNumber);
+            tokenPayload.put("version_name", versionName);
             tokenPayload.put("destination_domain", domain);
             tokenPayload.put("access_rights", rights);
             tokenPayload.put("global_jar", jarType);
-            
+
             tokenPayload.put("timestamp", System.currentTimeMillis());
             tokenPayload.put("nonce", generateNonce());
 
@@ -171,7 +171,7 @@ public class TokenGenerator {
             );
 
             Log.d(LOGTAG, "Generated token for domain: " + domain + ", cookie: " + cookieName + ", jar: " + jarType);
-            
+
             return encodedToken;
 
         } catch (Exception e) {
@@ -183,7 +183,7 @@ public class TokenGenerator {
     /**
      * Validates a capability token (for future use)
      */
-    public boolean validateToken(String encodedToken) {
+    public boolean isTokenValid(String encodedToken, String expectedDomain, String expectedVersionName, String expectedPackageName) {
         try {
             String tokenString = new String(
                 Base64.decode(encodedToken, Base64.NO_WRAP),
@@ -198,23 +198,54 @@ public class TokenGenerator {
             String expectedSignature = createSimpleSignature(payload);
             boolean isValid = expectedSignature.equals(signature);
 
-            if (isValid) {
-                // Additional validation: check timestamp, nonce, etc.
-                JSONObject payloadObj = new JSONObject(payload);
-                long timestamp = payloadObj.getLong("timestamp");
-                long currentTime = System.currentTimeMillis();
-
-                // Token expires after 1 hour (for POC)
-                boolean notExpired = (currentTime - timestamp) < (60 * 60 * 1000);
-
-                return notExpired;
+            if (!isValid) {
+                return false;
             }
 
-            return false;
+            // Signature valid => Check other properties (app version, domain, appid(packageName))
+            JSONObject payloadObj = new JSONObject(payload);
+            String version_name = payloadObj.getString("version_name");
+            String destination_domain = payloadObj.getString("destination_domain");
+            String app_id = payloadObj.getString("application_id");
+
+            if (!expectedVersionName.equals(version_name) ||
+                (!expectedDomain.equals(destination_domain) || (destination_domain.startsWith("*.") && expectedDomain.endsWith(destination_domain.substring(2)))) ||
+                !expectedPackageName.equals(app_id)) {
+
+                Log.e(LOGTAG, "Token validation failed - Version: " + version_name + ", Domain: " + destination_domain + ", App ID: " + app_id);
+                return false;
+            }
+            return true;
 
         } catch (Exception e) {
-            Log.e(LOGTAG, "Token validation failed", e);
+            Log.e(LOGTAG, "Token validation process failed", e);
             return false;
+        }
+    }
+
+
+    /**
+     * Validate tokens for a specific domain (public method)
+     */
+    public JSONArray getValidTokens(JSONArray encodedTokens, String expectedDomain, String expectedVersionName, String expectedPackageName) {
+        JSONArray validTokens = new JSONArray();
+
+        try {
+            for (int i = 0; i < encodedTokens.length(); i++) {
+                String encodedToken = encodedTokens.getString(i);
+
+                if (isTokenValid(encodedToken, expectedDomain, expectedVersionName, expectedPackageName)) {
+                    Log.d(LOGTAG, "Token " + (i + 1) + " is valid");
+                    validTokens.put(encodedToken);
+                }
+                // else: ignore? future maybe notify app of invalid token?
+            }
+
+            return validTokens;
+
+        } catch (Exception e) {
+            Log.e(LOGTAG, "Error validating tokens", e);
+            return validTokens;
         }
     }
 
@@ -229,4 +260,52 @@ public class TokenGenerator {
         String combined = payload + SECRET_KEY;
         return String.valueOf(combined.hashCode());
     }
+
+
+    /**
+     * Extract cookie information from validated tokens.
+     * Returns a map of cookie_name -> cookie_value for all valid tokens.
+     *
+     * @param validTokens JSONArray of validated tokens
+     * @return Map containing cookie name-value pairs
+     */
+    public Map<String, String> extractCookiesFromTokens(JSONArray validTokens) {
+        Map<String, String> cookies = new HashMap<>();
+
+        try {
+            for (int i = 0; i < validTokens.length(); i++) {
+                String encodedToken = validTokens.getString(i);
+                
+                // Decode the token
+                String tokenString = new String(
+                    Base64.decode(encodedToken, Base64.NO_WRAP),
+                    StandardCharsets.UTF_8
+                );
+
+                JSONObject token = new JSONObject(tokenString);
+                String payload = token.getString("payload");
+                
+                // Parse the payload to extract cookie information
+                JSONObject payloadObj = new JSONObject(payload);
+                String cookieName = payloadObj.getString("cookie_name");
+                String cookieValue = payloadObj.getString("cookie_value");
+                
+                // Skip wildcard cookies as they don't have specific values
+                if (!cookieName.equals("wildcard") && !cookieValue.equals("wildcard")) {
+                    cookies.put(cookieName, cookieValue);
+                    Log.d(LOGTAG, "Extracted cookie: " + cookieName + " = " + cookieValue);
+                } else {
+                    Log.d(LOGTAG, "Skipping wildcard token for cookie extraction");
+                }
+            }
+
+            Log.d(LOGTAG, "Extracted " + cookies.size() + " cookies from " + validTokens.length() + " valid tokens");
+
+        } catch (Exception e) {
+            Log.e(LOGTAG, "Error extracting cookies from tokens", e);
+        }
+
+        return cookies;
+    }
+
 }

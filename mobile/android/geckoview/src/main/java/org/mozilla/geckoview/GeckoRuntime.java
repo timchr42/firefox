@@ -664,6 +664,16 @@ public final class GeckoRuntime implements Parcelable {
   }
 
   /**
+   * Get the policy manager for this runtime.
+   *
+   * @return An instance of {@link PolicyManager}.
+   */
+  @UiThread
+  public @NonNull PolicyManager getPolicyManager() {
+    return mPolicyManager;
+  }
+
+  /**
    * Create a new runtime with the given settings and attach it to the given context.
    *
    * <p>Create will throw if there is already an active Gecko instance running, to prevent that,
@@ -704,11 +714,6 @@ public final class GeckoRuntime implements Parcelable {
 
     if (mScreenChangeListener != null) {
       mScreenChangeListener.disable();
-    }
-
-    // Unregister the PolicyManager if Runtime shut down
-    if (mPolicyManager != null) {
-      mPolicyManager.shutdown();
     }
 
     GeckoThread.forceQuit();

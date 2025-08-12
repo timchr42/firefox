@@ -1,9 +1,7 @@
 package org.mozilla.geckoview;
 
-import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
-import android.content.IntentFilter;
 import android.util.Log;
 
 import org.json.JSONArray;
@@ -18,64 +16,34 @@ public class PolicyManager {
 
     private final Context mContext;
     private final TokenGenerator mTokenGenerator;
-    private boolean mReceiverRegistered = false;
 
     public PolicyManager(Context context) {
         mContext = context.getApplicationContext();
         mTokenGenerator = new TokenGenerator();
         Log.i(LOGTAG, "PolicyManager initialized successfully with context: " + mContext.getClass().getSimpleName());
-        // Automatically register the receiver
-        registerReceiver();
+        // Note: Receiver registration is now handled statically via AndroidManifest.xml
+        // No need to register dynamically anymore
     }
 
     /**
-     * Register the broadcast receiver to listen for policy transmissions.
-     * This is called automatically during construction.
+     * Constructor for use by the static BroadcastReceiver.
+     * Does not register a dynamic receiver since the static one handles broadcasts.
      */
-    private void registerReceiver() {
-        if (!mReceiverRegistered) {
-            IntentFilter filter = new IntentFilter(ACTION);
-            mContext.registerReceiver(policyReceiver, filter, Context.RECEIVER_EXPORTED);
-
-            mReceiverRegistered = true;
-            Log.d(LOGTAG, "PolicyReceiver registered for action: " + ACTION);
-        }
+    public PolicyManager(Context context, boolean skipReceiverRegistration) {
+        this(context);
+        // This constructor is used by PolicyBroadcastReceiver to avoid double registration
     }
+
+
 
     /**
-     * Unregister the broadcast receiver to prevent memory leaks.
-     * Should be called when the PolicyManager is no longer needed.
+     * Process policy from broadcast receiver.
+     * This method is called by PolicyBroadcastReceiver when a policy is received.
      */
-    public void shutdown() {
-        if (mReceiverRegistered) {
-            try {
-                mContext.unregisterReceiver(policyReceiver);
-                mReceiverRegistered = false;
-                Log.d(LOGTAG, "PolicyReceiver unregistered");
-            } catch (IllegalArgumentException e) {
-                Log.w(LOGTAG, "PolicyReceiver was not registered", e);
-            }
-        }
+    public void processPolicyFromBroadcast(JSONObject policy, String packageName, String versionNumber) {
+        createCapabilities(policy, packageName, versionNumber);
     }
 
-    private final BroadcastReceiver policyReceiver = new BroadcastReceiver() {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            String packageName = intent.getStringExtra("package_name");
-            String policyJson = intent.getStringExtra("policy_json");
-            String versionNumber = intent.getStringExtra("version_number");
-
-            if (policyJson != null) {
-                Log.d(LOGTAG, "Received policy from " + packageName + ": " + policyJson);
-                try {
-                    JSONObject policy = new JSONObject(policyJson);
-                    createCapabilities(policy, packageName, versionNumber);
-                } catch (Exception e) {
-                    Log.e(LOGTAG, "Failed to parse policy JSON", e);
-                }
-            }
-        }
-    };
 
     private void createCapabilities(JSONObject policy, String packageName, String versionNumber) {
         Log.d(LOGTAG, "Creating capabilities for " + packageName + " with policy: " + policy.toString());
@@ -92,6 +60,7 @@ public class PolicyManager {
 
         } else {
             Log.e(LOGTAG, "Failed to generate capability tokens for " + packageName);
+            // What to do if no tokens are generated?
         }
     }
 
@@ -100,7 +69,8 @@ public class PolicyManager {
      */
     private void sendTokensToApp(Map<String, List<String>> tokensByDomain, String packageName) {
         try {
-            Intent responseIntent = new Intent("org.mozilla.geckoview.CAPABILITY_TOKENS");
+            Intent responseIntent = new Intent("org.mozilla.geckoview.CAPABILITY_TOKENS")
+                .addFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES);
             responseIntent.setPackage(packageName); // Send only to requesting app
 
             // Convert tokens map to JSON for transmission
@@ -115,7 +85,7 @@ public class PolicyManager {
 
         } catch (Exception e) {
             Log.e(LOGTAG, "Failed to send tokens to " + packageName, e);
-            
+
             // Send error response
             Intent errorIntent = new Intent("org.mozilla.geckoview.CAPABILITY_TOKENS");
             errorIntent.setPackage(packageName);

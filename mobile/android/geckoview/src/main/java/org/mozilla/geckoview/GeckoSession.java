@@ -742,6 +742,22 @@ public class GeckoSession {
               return;
             }
 
+            // CUSTOM TAB INTENT INTERCEPTION LOGGING
+            Log.d("GeckoSession", "=== Custom Tab Intent Intercepted ===");
+            Log.d("GeckoSession", "URI: " + request.uri);
+            Log.d("GeckoSession", "Trigger URI: " + request.triggerUri);
+            Log.d("GeckoSession", "Target Window: " + request.target);
+            Log.d("GeckoSession", "Has User Gesture: " + request.hasUserGesture);
+            Log.d("GeckoSession", "Is Direct Navigation: " + request.isDirectNavigation);
+            
+            // Check if this looks like a Custom Tab Intent
+            if (request.target == NavigationDelegate.TARGET_WINDOW_NEW && request.hasUserGesture) {
+                Log.i("GeckoSession", "🔍 POTENTIAL CUSTOM TAB DETECTED: " + request.uri);
+            }
+            if (request.uri.startsWith("intent:") || request.uri.startsWith("android-app:")) {
+                Log.i("GeckoSession", "📱 INTENT URI DETECTED: " + request.uri);
+            }
+
             final GeckoResult<AllowOrDeny> result =
                 delegate.onLoadRequest(GeckoSession.this, request);
 
