@@ -2269,6 +2269,9 @@ public class GeckoSession {
       return this;
     }
 
+    //BYETRACK?
+    // use this function to include my data?
+
     /**
      * Add headers for this load.
      *
@@ -2362,6 +2365,8 @@ public class GeckoSession {
       return this;
     }
   }
+
+  // Maybe modify this method (or Loader) to also load packageName, version and tokens
 
   /**
    * Load page using the {@link Loader} specified.

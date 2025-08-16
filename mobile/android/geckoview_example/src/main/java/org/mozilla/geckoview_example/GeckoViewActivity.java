@@ -900,7 +900,7 @@ public class GeckoViewActivity extends AppCompatActivity
     super.onCreate(savedInstanceState);
 
     // Log and intercept CustomTabs intents
-    logAndInterceptIntent(getIntent(), "onCreate");
+    //logAndInterceptIntent(getIntent(), "onCreate");
 
     // We might have been started because the user clicked on a notification
     WebNotification notification = getIntent().getParcelableExtra("onClick");
@@ -1906,6 +1906,11 @@ public class GeckoViewActivity extends AppCompatActivity
     }
   }
 
+  // BYETRACK
+  // Called at the end of onCreate() and onNewIntent()
+  // forwards the intent data to geckoview (GeckoSession)
+  // include capmod data?
+
   private void loadFromIntent(final Intent intent) {
     final Uri uri = intent.getData();
     if (uri != null) {
@@ -1914,8 +1919,32 @@ public class GeckoViewActivity extends AppCompatActivity
           .load(
               new GeckoSession.Loader()
                   .uri(uri.toString())
-                  .flags(GeckoSession.LOAD_FLAGS_EXTERNAL));
+                  .flags(GeckoSession.LOAD_FLAGS_EXTERNAL)
+                  .additionalHeaders(getCapModData(intent))
+                  ); // ADDED: store data as addiditional Header in GeckoSession
     }
+  }
+
+  private Map<String, String> getCapModData(final Intent intent) {
+    String tokens = intent.getStringExtra("capability_tokens");
+    String finalCaps = intent.getStringExtra("final_caps");
+    String nonce = intent.getStringExtra("cap_nonce");
+    CallerNonceStore.Record caller = CallerNonceStore.consume(nonce);
+    String versionName = "Unknown";
+    try {
+      versionName = getPackageManager().getPackageInfo(caller.packageName, 0).versionName;
+    } catch (PackageManager.NameNotFoundException e) {
+      throw new RuntimeException("Package not found: " + caller.packageName, e);
+    }
+
+    Map<String, String> capModData = new HashMap<>();
+    capModData.put("capability_tokens", tokens);
+    capModData.put("final_caps", finalCaps);
+    capModData.put("caller_package", caller.packageName);
+    capModData.put("caller_name", versionName);
+
+    Log.d(LOGTAG, "AdditionalHeader " + capModData);
+    return capModData;
   }
 
   // DEBUGGING FUNCTION

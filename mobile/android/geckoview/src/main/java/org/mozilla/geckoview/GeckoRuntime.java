@@ -280,7 +280,6 @@ public final class GeckoRuntime implements Parcelable {
       throw new IllegalStateException("Only one GeckoRuntime instance is allowed");
     }
     sRuntime = this;
-    Log.d(LOGTAG, "TEST");
 
   }
 
