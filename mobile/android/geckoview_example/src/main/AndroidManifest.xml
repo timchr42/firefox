@@ -26,6 +26,13 @@
         <uses-library android:name="android.test.runner"
                       android:required="false"/>
 
+        <provider
+            android:name=".callerid.CallerIdProvider"
+            android:authorities="${applicationId}.callerid"
+            android:exported="true"
+        />
+
+
         <activity
             android:configChanges="keyboardHidden|orientation|screenSize|screenLayout|smallestScreenSize"
                 android:name=".GeckoViewActivity"

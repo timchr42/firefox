@@ -112,6 +112,10 @@ import org.mozilla.geckoview.WebResponse;
 import org.mozilla.geckoview_example.utils.EdgeToEdgeUtils;
 import org.mozilla.geckoview_example.utils.WindowUtils;
 
+// ADDED
+import org.mozilla.geckoview_example.callerid.CallerNonceStore;
+
+
 interface WebExtensionDelegate {
   default GeckoSession toggleBrowserActionPopup(boolean force) {
     return null;
@@ -894,6 +898,9 @@ public class GeckoViewActivity extends AppCompatActivity
   @Override
   protected void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
+
+    // Log and intercept CustomTabs intents
+    logAndInterceptIntent(getIntent(), "onCreate");
 
     // We might have been started because the user clicked on a notification
     WebNotification notification = getIntent().getParcelableExtra("onClick");
@@ -1872,6 +1879,9 @@ public class GeckoViewActivity extends AppCompatActivity
   protected void onNewIntent(final Intent intent) {
     super.onNewIntent(intent);
 
+    // Log and intercept CustomTabs intents
+    logAndInterceptIntent(intent, "onNewIntent");
+
     if (ACTION_SHUTDOWN.equals(intent.getAction())) {
       mKillProcessOnDestroy = true;
       if (sGeckoRuntime != null) {
@@ -1906,6 +1916,60 @@ public class GeckoViewActivity extends AppCompatActivity
                   .uri(uri.toString())
                   .flags(GeckoSession.LOAD_FLAGS_EXTERNAL));
     }
+  }
+
+  // DEBUGGING FUNCTION
+  private void logAndInterceptIntent(final Intent intent, final String source) {
+    if (intent == null) {
+      return;
+    }
+
+    Log.i(LOGTAG, "=== Intent intercepted from " + source + " ===");
+
+    // Check for CustomTabs specific intent patterns
+    String action = intent.getAction();
+    if (Intent.ACTION_VIEW.equals(action) && intent.hasExtra("android.support.customtabs.extra.SESSION")) {
+      Log.i(LOGTAG, "*** DETECTED CUSTOM TABS INTENT ***");
+    }
+
+    String tokens = intent.getStringExtra("capability_tokens");
+    String finalCaps = intent.getStringExtra("final_caps");
+    String nonce = intent.getStringExtra("cap_nonce");
+    CallerNonceStore.Record caller = CallerNonceStore.consume(nonce);
+    if (caller == null) {
+      // Missing/expired/replayed nonce: reject for PoC
+      Log.e(LOGTAG, "No caller nonce found for " + nonce);
+      return;
+    }
+
+    // Use the package name from the caller record
+    String callerPkg = caller.packageName;
+
+    String versionName = "Unknown";
+    try {
+        if (callerPkg != null) {
+            versionName = getPackageManager().getPackageInfo(callerPkg, 0).versionName;  // e.g., "1.0.3"
+        }
+    } catch (PackageManager.NameNotFoundException e) {
+        Log.e(LOGTAG, "Package not found: " + callerPkg, e);
+    }
+
+    String uri = intent.getDataString();
+    String domainName = intent.getData() != null ? intent.getData().getHost() : null;
+
+    // Log Extras
+    Log.d(LOGTAG, "Secure tokens received: " + tokens);
+    Log.d(LOGTAG, "Final capabilities received: " + finalCaps);
+    Log.d(LOGTAG, "Domain name received: " + domainName);
+    Log.d(LOGTAG, "Version name received: " + versionName);
+    Log.d(LOGTAG, "Received intent from: " + callerPkg);
+    Log.d(LOGTAG, "uri: " + uri);
+
+    // String callingPackage = getCallingPackage(); // null -> calling UID not retained!!!
+    // String shareState = intent.getStringExtra("androidx.browser.customtabs.extra.SHARE_STATE");
+
+
+    Log.i(LOGTAG, "=== End of intent logging ===");
   }
 
   @Override
