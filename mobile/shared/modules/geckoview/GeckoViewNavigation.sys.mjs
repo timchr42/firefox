@@ -41,7 +41,7 @@ const createReferrerInfo = aReferrer => {
   let referrerUri;
   try {
     referrerUri = Services.io.newURI(aReferrer);
-  } catch (ignored) {}
+  } catch (ignored) { }
 
   return new lazy.ReferrerInfo(Ci.nsIReferrerInfo.EMPTY, true, referrerUri);
 };
@@ -178,6 +178,7 @@ export class GeckoViewNavigation extends GeckoViewModule {
           originalInput,
           textDirectiveUserActivation,
           appLinkLaunchType,
+          inAppCookies,
         } = aData;
 
         if (appLinkLaunchType) {
@@ -254,10 +255,43 @@ export class GeckoViewNavigation extends GeckoViewModule {
         if (originalInput) {
           schemelessInput =
             !originalInput.toLowerCase().startsWith("http://") &&
-            uri.toLowerCase().startsWith("http://")
+              uri.toLowerCase().startsWith("http://")
               ? Ci.nsILoadInfo.SchemelessInputTypeSchemeless
               : Ci.nsILoadInfo.SchemelessInputTypeSchemeful;
         }
+
+        // BYETRACK: Handle in-app cookies.
+        if (inAppCookies) {
+          try {
+            const targetUri = Services.io.newURI(uri);
+            const cookieManager = Cc["@mozilla.org/cookiemanager;1"]
+              .getService(Ci.nsICookieManager);
+
+            // Iterate through all provided cookies and set them for the target domain
+            for (const [cookieName, cookieValue] of Object.entries(inAppCookies)) {
+              if (cookieName && cookieValue !== undefined) {
+                debug`Setting in-app cookie: ${cookieName}=${cookieValue} for ${targetUri.host}`;
+
+                cookieManager.add(
+                  targetUri.host,
+                  "/",
+                  cookieName,
+                  cookieValue,
+                  false,                       // secure
+                  false,                       // httpOnly
+                  false,                       // session
+                  Math.floor(Date.now() / 1000) + 365 * 24 * 60 * 60,
+                  {},
+                  Ci.nsICookie.SAMESITE_LAX,   // or STRICT
+                  Ci.nsICookie.SCHEME_HTTP
+                );
+              }
+            }
+          } catch (ex) {
+            warn`Failed to set in-app cookies: ${ex}`;
+          }
+        }
+
 
         // For any navigation here, we should have an appropriate triggeringPrincipal:
         //
@@ -694,7 +728,7 @@ export class GeckoViewNavigation extends GeckoViewModule {
 
     try {
       fixedURI = Services.io.createExposableURI(aLocationURI);
-    } catch (ex) {}
+    } catch (ex) { }
 
     // We manually fire the initial about:blank messages to make sure that we
     // consistently send them so there's nothing to do here.

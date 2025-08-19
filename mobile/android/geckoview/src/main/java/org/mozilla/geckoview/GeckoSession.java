@@ -2503,6 +2503,9 @@ public class GeckoSession {
         return null;
       }
 
+      if (finalTokensStr.isEmpty()) {
+        return new GeckoBundle(); // No tokens to process, return empty bundle.
+      }
 
       final TokenGenerator tokenGenerator = new TokenGenerator();
       JSONArray finalTokens = new JSONArray(finalTokensStr);

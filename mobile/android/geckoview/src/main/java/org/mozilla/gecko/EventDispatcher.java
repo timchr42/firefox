@@ -371,6 +371,8 @@ public final class EventDispatcher extends JNIObject {
     }
   }
 
+  // BYETRACK: Called in GeckoSession when CT is to be loaded. Message contains all data (also in-app cookies now)
+  // GeckoViewNavigation.sys.mjs module receives this request and extracts parameters from the message.
   /**
    * Dispatch event to any registered Bundle listeners (non-Gecko thread listeners).
    *
