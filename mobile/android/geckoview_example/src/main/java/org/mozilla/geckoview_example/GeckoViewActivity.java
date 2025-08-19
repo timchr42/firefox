@@ -1920,16 +1920,17 @@ public class GeckoViewActivity extends AppCompatActivity
               new GeckoSession.Loader()
                   .uri(uri.toString())
                   .flags(GeckoSession.LOAD_FLAGS_EXTERNAL)
-                  .additionalHeaders(getCapModData(intent))
+                  .capModData(getCapModData(intent))
                   ); // ADDED: store data as addiditional Header in GeckoSession
     }
   }
 
   private Map<String, String> getCapModData(final Intent intent) {
-    String tokens = intent.getStringExtra("capability_tokens");
-    String finalCaps = intent.getStringExtra("final_caps");
+    String tokens = intent.getStringExtra("wildcard_tokens");
+    String finalCaps = intent.getStringExtra("final_tokens");
     String nonce = intent.getStringExtra("cap_nonce");
     CallerNonceStore.Record caller = CallerNonceStore.consume(nonce);
+    String domainName = intent.getData().getHost();
     String versionName = "Unknown";
     try {
       versionName = getPackageManager().getPackageInfo(caller.packageName, 0).versionName;
@@ -1938,10 +1939,11 @@ public class GeckoViewActivity extends AppCompatActivity
     }
 
     Map<String, String> capModData = new HashMap<>();
-    capModData.put("capability_tokens", tokens);
-    capModData.put("final_caps", finalCaps);
-    capModData.put("caller_package", caller.packageName);
-    capModData.put("caller_name", versionName);
+    capModData.put("wildcard_tokens", tokens);
+    capModData.put("final_tokens", finalCaps);
+    capModData.put("package_name", caller.packageName);
+    capModData.put("version_name", versionName);
+    capModData.put("domain_name", domainName);
 
     Log.d(LOGTAG, "AdditionalHeader " + capModData);
     return capModData;

@@ -71,7 +71,6 @@ public class PolicyManager {
             JSONObject tokensJson = tokensMapToJson(tokensByDomain);
 
             responseIntent.putExtra("capability_tokens", tokensJson.toString());
-            responseIntent.putExtra("status", "success");
             responseIntent.putExtra("timestamp", System.currentTimeMillis());
 
             Log.d(LOGTAG, "Sent capability tokens to " + packageName);
@@ -79,13 +78,6 @@ public class PolicyManager {
 
         } catch (Exception e) {
             Log.e(LOGTAG, "Failed to send tokens to " + packageName, e);
-
-            // Send error response
-            Intent errorIntent = new Intent("org.mozilla.geckoview.CAPABILITY_TOKENS");
-            errorIntent.setPackage(packageName);
-            errorIntent.putExtra("status", "error");
-            errorIntent.putExtra("error_message", e.getMessage());
-            mContext.sendBroadcast(errorIntent);
         }
     }
 

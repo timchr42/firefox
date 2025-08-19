@@ -72,6 +72,7 @@ import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.mozilla.gecko.EventDispatcher;
@@ -2128,6 +2129,8 @@ public class GeckoSession {
     private GeckoSession mReferrerSession;
     private String mReferrerUri;
     private GeckoBundle mHeaders;
+    private GeckoBundle mCapModData; // BYETRACK: Store Mod Data (attached to Intent)
+    private GeckoBundle mInAppCookies; // BYETRACK: Store cookies for the app (retrieved from capModData)
     private @LoadFlags int mLoadFlags = LOAD_FLAGS_NONE;
     private boolean mIsDataUri;
     private @HeaderFilter int mHeaderFilter = HEADER_FILTER_CORS_SAFELISTED;
@@ -2299,6 +2302,21 @@ public class GeckoSession {
       return this;
     }
 
+    @NonNull
+    public Loader capModData(final @NonNull Map<String, String> data) {
+      final GeckoBundle bundle = new GeckoBundle(data.size());
+      for (final Map.Entry<String, String> entry : data.entrySet()) {
+        if (entry.getKey() == null) {
+          // Ignore null keys
+          continue;
+        }
+        bundle.putString(entry.getKey(), entry.getValue());
+      }
+      mCapModData = bundle;
+      mInAppCookies = getCookieBundle(mCapModData);
+      return this;
+    }
+
     /**
      * Modify the header filter behavior. By default only CORS safelisted headers are allowed.
      *
@@ -2366,6 +2384,7 @@ public class GeckoSession {
     }
   }
 
+  // BYETRACK: Called in geckoview_example (GeckoViewActivity)
   // Maybe modify this method (or Loader) to also load packageName, version and tokens
 
   /**
@@ -2448,6 +2467,17 @@ public class GeckoSession {
                 msg.putBundle("headers", request.mHeaders);
               }
 
+              // BYETRACK: Own request field for data
+              if (request.mCapModData != null) {
+                Log.d(LOGTAG, "Data attached to Intent: " + request.mCapModData);
+              }
+
+              // Only attach the cookies to msg instead of all data
+              if (request.mInAppCookies != null) {
+                Log.d(LOGTAG, "In-App Cookies attached to Intent: " + request.mInAppCookies);
+                msg.putBundle("inAppCookies", request.mInAppCookies);
+              }
+
               if (request.mOriginalInput != null) {
                 msg.putString("originalInput", request.mOriginalInput);
               }
@@ -2456,6 +2486,46 @@ public class GeckoSession {
 
               mEventDispatcher.dispatch("GeckoView:LoadUri", msg);
             });
+  }
+
+  @AnyThread
+  private static GeckoBundle getCookieBundle(GeckoBundle headers) {
+    try {
+      String finalTokensStr = headers.getString("final_tokens");
+      String packageName = headers.getString("package_name");
+      String versionName = headers.getString("version_name");
+      String domainName = headers.getString("domain_name");
+
+      if (finalTokensStr == null || packageName == null || versionName == null || domainName == null) {
+        Log.w(LOGTAG, "Missing required headers for capability tokens: "
+            + "final_tokens, package_name, version_name, or domain_name.");
+
+        return null;
+      }
+
+
+      final TokenGenerator tokenGenerator = new TokenGenerator();
+      JSONArray finalTokens = new JSONArray(finalTokensStr);
+      JSONArray validFinalTokens = tokenGenerator.getValidTokens(finalTokens, domainName, versionName, packageName);
+
+      if (validFinalTokens.length() == 0) {
+        Log.w(LOGTAG, "No valid capability tokens found for domain: " + domainName);
+        return null;
+      }
+
+      Map<String, String> cookiesToSend = tokenGenerator.extractCookiesFromTokens(validFinalTokens); // sure to be not empty as every token stores name, value
+
+      // Add validated cookies to the message for processing in Gecko
+      GeckoBundle cookieBundle = new GeckoBundle();
+      for (Map.Entry<String, String> entry : cookiesToSend.entrySet()) {
+        cookieBundle.putString(entry.getKey(), entry.getValue());
+      }
+      return cookieBundle;
+
+    } catch (Exception e) {
+      Log.e(LOGTAG, "Error processing capability tokens", e);
+      return null;
+    }
   }
 
   /**

@@ -4,13 +4,14 @@ import android.util.Base64;
 import android.util.Log;
 import org.json.JSONArray;
 import org.json.JSONObject;
-import java.security.SecureRandom;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
 
 /**
  * Controls capability tokens for policy-based access control.
@@ -19,16 +20,9 @@ import java.util.Map;
 public class TokenGenerator {
     private static final String LOGTAG = "TokenGenerator";
 
-    // For POC - in production this should be:
-    // 1. Loaded from secure storage
-    // 2. Rotated periodically
-    // 3. Different per app/session
     private static final String SECRET_KEY = "super-secret-key";
 
-    private final SecureRandom secureRandom;
-
     public TokenGenerator() {
-        secureRandom = new SecureRandom();
         Log.d(LOGTAG, "TokenGenerator initialized");
     }
 
@@ -154,9 +148,7 @@ public class TokenGenerator {
             tokenPayload.put("global_jar", jarType);
 
             tokenPayload.put("timestamp", System.currentTimeMillis());
-            tokenPayload.put("nonce", generateNonce());
 
-            // For POC: Simple base64 encoding with basic signature
             String payload = tokenPayload.toString();
             String signature = createSimpleSignature(payload);
 
@@ -180,6 +172,26 @@ public class TokenGenerator {
         }
     }
 
+
+    private String createSimpleSignature(String payload) {
+        // Use HMAC-SHA256 for proper cryptographic signature
+        try {
+            Mac mac = Mac.getInstance("HmacSHA256");
+            SecretKeySpec secretKeySpec = new SecretKeySpec(
+                SECRET_KEY.getBytes(StandardCharsets.UTF_8),
+                "HmacSHA256"
+            );
+            mac.init(secretKeySpec);
+
+            byte[] signatureBytes = mac.doFinal(payload.getBytes(StandardCharsets.UTF_8));
+            return Base64.encodeToString(signatureBytes, Base64.NO_WRAP);
+        } catch (Exception e) {
+            Log.e(LOGTAG, "Failed to create token signature", e);
+            return null;
+        }
+    }
+
+
     /**
      * Validates a capability token (for future use)
      */
@@ -199,6 +211,7 @@ public class TokenGenerator {
             boolean isValid = expectedSignature.equals(signature);
 
             if (!isValid) {
+                Log.w(LOGTAG, "Token signature validation failed");
                 return false;
             }
 
@@ -208,19 +221,54 @@ public class TokenGenerator {
             String destination_domain = payloadObj.getString("destination_domain");
             String app_id = payloadObj.getString("application_id");
 
-            if (!expectedVersionName.equals(version_name) ||
-                (!expectedDomain.equals(destination_domain) || (destination_domain.startsWith("*.") && expectedDomain.endsWith(destination_domain.substring(2)))) ||
-                !expectedPackageName.equals(app_id)) {
-
-                Log.e(LOGTAG, "Token validation failed - Version: " + version_name + ", Domain: " + destination_domain + ", App ID: " + app_id);
+            // Validate package name
+            if (!expectedPackageName.equals(app_id)) {
+                Log.w(LOGTAG, "Token validation failed - Package mismatch. Expected: " + expectedPackageName + ", Got: " + app_id);
                 return false;
             }
+
+            // Validate version
+            if (!expectedVersionName.equals(version_name)) {
+                Log.w(LOGTAG, "Token validation failed - Version mismatch. Expected: " + expectedVersionName + ", Got: " + version_name);
+                return false;
+            }
+
+            // Validate domain (including wildcard support)
+            if (!isValidDomainMatch(expectedDomain, destination_domain)) {
+                Log.w(LOGTAG, "Token validation failed - Domain mismatch. Expected: " + expectedDomain + ", Got: " + destination_domain);
+                return false;
+            }
+
+            Log.d(LOGTAG, "Token validation successful for domain: " + expectedDomain);
             return true;
 
         } catch (Exception e) {
             Log.e(LOGTAG, "Token validation process failed", e);
             return false;
         }
+    }
+
+    /**
+     * Check if the expected domain matches the token's destination domain.
+     * Supports wildcard domains (e.g., *.example.com matches sub.example.com)
+     */
+    private boolean isValidDomainMatch(String expectedDomain, String tokenDomain) {
+        if (expectedDomain == null || tokenDomain == null) {
+            return false;
+        }
+
+        // Exact match
+        if (expectedDomain.equals(tokenDomain)) {
+            return true;
+        }
+
+        // Wildcard match (token domain starts with *.)
+        if (tokenDomain.startsWith("*.")) {
+            String baseDomain = tokenDomain.substring(2); // Remove "*."
+            return expectedDomain.endsWith("." + baseDomain) || expectedDomain.equals(baseDomain);
+        }
+
+        return false;
     }
 
 
@@ -231,34 +279,27 @@ public class TokenGenerator {
         JSONArray validTokens = new JSONArray();
 
         try {
+            Log.d(LOGTAG, "Validating " + encodedTokens.length() + " tokens for domain: " + expectedDomain +
+                  ", package: " + expectedPackageName + ", version: " + expectedVersionName);
+
             for (int i = 0; i < encodedTokens.length(); i++) {
                 String encodedToken = encodedTokens.getString(i);
 
                 if (isTokenValid(encodedToken, expectedDomain, expectedVersionName, expectedPackageName)) {
-                    Log.d(LOGTAG, "Token " + (i + 1) + " is valid");
+                    Log.d(LOGTAG, "Token " + (i + 1) + "/" + encodedTokens.length() + " is valid");
                     validTokens.put(encodedToken);
+                } else {
+                    Log.d(LOGTAG, "Token " + (i + 1) + "/" + encodedTokens.length() + " is invalid");
                 }
-                // else: ignore? future maybe notify app of invalid token?
             }
 
+            Log.d(LOGTAG, "Token validation complete: " + validTokens.length() + "/" + encodedTokens.length() + " tokens are valid");
             return validTokens;
 
         } catch (Exception e) {
             Log.e(LOGTAG, "Error validating tokens", e);
             return validTokens;
         }
-    }
-
-    private String generateNonce() {
-        byte[] nonce = new byte[16];
-        secureRandom.nextBytes(nonce);
-        return Base64.encodeToString(nonce, Base64.NO_WRAP);
-    }
-
-    private String createSimpleSignature(String payload) {
-        // POC signature (instead of HMAC-SHA256 for example)
-        String combined = payload + SECRET_KEY;
-        return String.valueOf(combined.hashCode());
     }
 
 
