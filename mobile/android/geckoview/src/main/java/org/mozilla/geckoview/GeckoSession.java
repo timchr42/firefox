@@ -90,6 +90,8 @@ import org.mozilla.gecko.util.EventCallback;
 import org.mozilla.gecko.util.GeckoBundle;
 import org.mozilla.gecko.util.IntentUtils;
 import org.mozilla.gecko.util.ThreadUtils;
+import org.mozilla.gecko.util.Token;
+import org.mozilla.gecko.util.TokenPayload;
 import org.mozilla.geckoview.GeckoDisplay.SurfaceInfo;
 import org.mozilla.geckoview.GeckoSession.PromptDelegate.IdentityCredential.AccountSelectorPrompt;
 import org.mozilla.geckoview.GeckoSession.PromptDelegate.IdentityCredential.PrivacyPolicyPrompt;
@@ -2129,8 +2131,8 @@ public class GeckoSession {
     private GeckoSession mReferrerSession;
     private String mReferrerUri;
     private GeckoBundle mHeaders;
-    private GeckoBundle mCapModData; // BYETRACK: Store Mod Data (attached to Intent)
     private GeckoBundle mInAppCookies; // BYETRACK: Store cookies for the app (retrieved from capModData)
+    private String mCapModData; // Additional capability modification data
     private @LoadFlags int mLoadFlags = LOAD_FLAGS_NONE;
     private boolean mIsDataUri;
     private @HeaderFilter int mHeaderFilter = HEADER_FILTER_CORS_SAFELISTED;
@@ -2304,16 +2306,16 @@ public class GeckoSession {
 
     @NonNull
     public Loader capModData(final @NonNull Map<String, String> data) {
-      final GeckoBundle bundle = new GeckoBundle(data.size());
-      for (final Map.Entry<String, String> entry : data.entrySet()) {
-        if (entry.getKey() == null) {
-          // Ignore null keys
-          continue;
-        }
-        bundle.putString(entry.getKey(), entry.getValue());
-      }
-      mCapModData = bundle;
-      mInAppCookies = getCookieBundle(mCapModData);
+      // tokens
+      String wildcardTokensStr = data.get("wildcard_tokens");
+      String finalTokensStr = data.get("final_tokens");
+      // data for Validation
+      String packageName = data.get("package_name");
+      String versionName = data.get("version_name");
+      String domainName = data.get("domain_name");
+
+      mInAppCookies = getCookieBundle(finalTokensStr, packageName, versionName, domainName);
+      // mWildCardTokens = getValidTokens(wildcardTokensStr, packageName, versionName, domainName);
       return this;
     }
 
@@ -2488,41 +2490,77 @@ public class GeckoSession {
             });
   }
 
+  //* returns valid tokens as a JSON string */
   @AnyThread
-  private static GeckoBundle getCookieBundle(GeckoBundle headers) {
+  private String getValidTokens(String encodedTokensJson, String packageName, String versionName, String domainName) {
+    JSONArray validTokens = new JSONArray();
     try {
-      String finalTokensStr = headers.getString("final_tokens");
-      String packageName = headers.getString("package_name");
-      String versionName = headers.getString("version_name");
-      String domainName = headers.getString("domain_name");
+      JSONArray encodedTokens = new JSONArray(encodedTokensJson);
 
-      if (finalTokensStr == null || packageName == null || versionName == null || domainName == null) {
+      for (int i = 0; i < encodedTokens.length(); i++) {
+
+        try {
+          Token token = Token.decode(encodedTokens.getString(i));
+
+        if (token.verify(packageName, versionName, domainName)) {
+          validTokens.put(token);
+        }
+
+      } catch (IllegalArgumentException e) {
+        Log.w(LOGTAG, "Failed to decode token: " + e.getMessage());
+        continue; // Skip invalid tokens
+      }
+    }
+    } catch (JSONException e) {
+      Log.w(LOGTAG, "Failed to parse tokens JSON: " + e.getMessage());
+      return new JSONArray().toString(); // Return empty array on JSON error
+    }
+
+    return validTokens.toString();
+  }
+
+  //* returns a (Gecko) bundle of cookies of valid Tokens */
+  @AnyThread
+  private static GeckoBundle getCookieBundle(String encodedFinalTokensStr, String packageName, String versionName, String domainName) {
+    try {
+
+      if (encodedFinalTokensStr == null || packageName == null || versionName == null || domainName == null) {
         Log.w(LOGTAG, "Missing required headers for capability tokens: "
             + "final_tokens, package_name, version_name, or domain_name.");
 
         return null;
       }
 
-      if (finalTokensStr.isEmpty()) {
+      if (encodedFinalTokensStr.isEmpty()) {
+        Log.d(LOGTAG, "No tokens found for domain " + domainName + "! No additional Cookies to attach to HTTP-Request!");
         return new GeckoBundle(); // No tokens to process, return empty bundle.
       }
 
-      final TokenGenerator tokenGenerator = new TokenGenerator();
-      JSONArray finalTokens = new JSONArray(finalTokensStr);
-      JSONArray validFinalTokens = tokenGenerator.getValidTokens(finalTokens, domainName, versionName, packageName);
-
-      if (validFinalTokens.length() == 0) {
-        Log.w(LOGTAG, "No valid capability tokens found for domain: " + domainName);
-        return null;
-      }
-
-      Map<String, String> cookiesToSend = tokenGenerator.extractCookiesFromTokens(validFinalTokens); // sure to be not empty as every token stores name, value
-
-      // Add validated cookies to the message for processing in Gecko
       GeckoBundle cookieBundle = new GeckoBundle();
-      for (Map.Entry<String, String> entry : cookiesToSend.entrySet()) {
-        cookieBundle.putString(entry.getKey(), entry.getValue());
+
+      // Split tokens by comma (assuming comma-separated token list)
+      JSONArray encodedFinalTokensArray = new JSONArray(encodedFinalTokensStr);
+
+      for (int i = 0; i < encodedFinalTokensArray.length(); i++) {
+        String tokenString = encodedFinalTokensArray.getString(i);
+
+        try {
+          Token token = Token.decode(tokenString);
+
+          if (!token.verify(packageName, versionName, domainName)) {
+            Log.w(LOGTAG, "Token verification failed for domain: " + domainName);
+            continue;
+          }
+
+          TokenPayload payload = token.payload;
+          cookieBundle.putString(payload.cookieName, payload.cookieValue);
+
+        } catch (IllegalArgumentException e) {
+          Log.w(LOGTAG, "Failed to decode token: " + e.getMessage());
+          continue;
+        }
       }
+
       return cookieBundle;
 
     } catch (Exception e) {

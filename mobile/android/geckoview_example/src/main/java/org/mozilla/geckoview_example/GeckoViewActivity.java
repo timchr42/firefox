@@ -1931,7 +1931,7 @@ public class GeckoViewActivity extends AppCompatActivity
     String nonce = intent.getStringExtra("cap_nonce");
     CallerNonceStore.Record caller = CallerNonceStore.consume(nonce);
     String domainName = intent.getData().getHost();
-    String versionName = "Unknown";
+    String versionName = "";
     try {
       versionName = getPackageManager().getPackageInfo(caller.packageName, 0).versionName;
     } catch (PackageManager.NameNotFoundException e) {
@@ -1945,7 +1945,7 @@ public class GeckoViewActivity extends AppCompatActivity
     capModData.put("version_name", versionName);
     capModData.put("domain_name", domainName);
 
-    Log.d(LOGTAG, "AdditionalHeader " + capModData);
+    Log.d(LOGTAG, "Forward Intent Data to GeckoSession: " + capModData);
     return capModData;
   }
 

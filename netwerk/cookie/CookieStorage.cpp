@@ -648,6 +648,8 @@ CookieStorage::ChipsLimitExcess CookieStorage::PartitionLimitExceededBytes(
   return res;
 }
 
+// BYETRACK: responsible for storing the cookie
+
 // this is a backend function for adding a cookie to the list, via SetCookie.
 // also used in the cookie manager, for profile migration from IE.  it either
 // replaces an existing cookie; or adds the cookie to the hashtable, and

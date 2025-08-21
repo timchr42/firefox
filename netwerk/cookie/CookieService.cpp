@@ -344,6 +344,9 @@ CookieService::GetCookieBehavior(bool aIsPrivate, uint32_t* aCookieBehavior) {
   return NS_OK;
 }
 
+// BYETRACK: method called before sending HTTP-Request => SENDING
+// Searches cookies for target domain (URI) and creates the Cookie-Header
+
 NS_IMETHODIMP
 CookieService::GetCookieStringFromHttp(nsIURI* aHostURI, nsIChannel* aChannel,
                                        nsACString& aCookieString) {
@@ -419,6 +422,8 @@ CookieService::GetCookieStringFromHttp(nsIURI* aHostURI, nsIChannel* aChannel,
   }
   return NS_OK;
 }
+
+// BYETRACK: function that actually sets/stores the cookies
 
 NS_IMETHODIMP
 CookieService::SetCookieStringFromHttp(nsIURI* aHostURI,
