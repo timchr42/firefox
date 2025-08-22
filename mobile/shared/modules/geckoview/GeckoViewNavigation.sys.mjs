@@ -295,7 +295,10 @@ export class GeckoViewNavigation extends GeckoViewModule {
 
         // BYETRACK: Handle wildcard tokens.
         if (wildcardTokens) {
-          debug`Handling wildcard tokens: ${wildcardTokens}`;
+          // console.log(`Handling wildcard tokens: ${wildcardTokens}`);
+          wildcardTokens.forEach((token, idx) => {
+            console.log(`Token ${idx}:`, token);
+          });
         }
 
 

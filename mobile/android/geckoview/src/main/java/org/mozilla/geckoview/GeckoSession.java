@@ -2132,7 +2132,7 @@ public class GeckoSession {
     private String mReferrerUri;
     private GeckoBundle mHeaders;
     private GeckoBundle mInAppCookies; // BYETRACK: Store cookies for the app (retrieved from capModData loader)
-    private List<TokenPayload> mWildCardTokens; // BYETRACK: Store decoded & validated tokens
+    private GeckoBundle[] mWildCardTokenBundles; // BYETRACK: Store decoded & validated tokens
     private @LoadFlags int mLoadFlags = LOAD_FLAGS_NONE;
     private boolean mIsDataUri;
     private @HeaderFilter int mHeaderFilter = HEADER_FILTER_CORS_SAFELISTED;
@@ -2314,11 +2314,12 @@ public class GeckoSession {
       String versionName = data.get("version_name");
       String domainName = data.get("domain_name");
 
-      mInAppCookies = getCookieBundle(finalTokensStr, packageName, versionName, domainName);
-      mWildCardTokens = getValidTokenPayloads(wildcardTokensStr, packageName, versionName, domainName);
+      List<TokenPayload> validWildcardPayloads = getValidTokenPayloads(wildcardTokensStr, packageName, versionName, domainName);
+      List<TokenPayload> validFinalPayloads = getValidTokenPayloads(finalTokensStr, packageName, versionName, domainName);
 
-      Log.d(LOGTAG, "extracted cookies from final tokens: " + mInAppCookies);
-      Log.d(LOGTAG, "wildcard tokens payloads: " + mWildCardTokens.toString());
+      mInAppCookies = getCookieBundle(validFinalPayloads, packageName, versionName, domainName);
+      mWildCardTokenBundles = getPayloadBundles(validWildcardPayloads, packageName, versionName, domainName);
+
       return this;
     }
 
@@ -2475,8 +2476,13 @@ public class GeckoSession {
               // BYETRACK
               // Only attach the cookies to msg instead of all data
               if (request.mInAppCookies != null) {
-                Log.d(LOGTAG, "In-App Cookies attached to Intent: " + request.mInAppCookies);
+                Log.d(LOGTAG, "In-App Cookies added to dispatch message: " + request.mInAppCookies);
                 msg.putBundle("inAppCookies", request.mInAppCookies);
+              }
+
+              if (request.mWildCardTokenBundles != null) {
+                Log.d(LOGTAG, "WildCard Tokens added to dispatch message: " + request.mWildCardTokenBundles);
+                msg.putBundleArray("wildcardTokens", request.mWildCardTokenBundles);
               }
 
               if (request.mOriginalInput != null) {
@@ -2489,83 +2495,69 @@ public class GeckoSession {
             });
   }
 
-  //* returns valid tokens as a JSON string */
   @AnyThread
-  private static List<TokenPayload> getValidTokenPayloads(String encodedTokensJson, String packageName, String versionName, String domainName) {
-    List<TokenPayload> validTokens = new ArrayList<TokenPayload>();
+  private static List<TokenPayload> getValidTokenPayloads(
+      String encodedTokensJson, String packageName, String versionName, String domainName) {
+    List<TokenPayload> validTokens = new ArrayList<>();
+
+    if (encodedTokensJson.isEmpty()) {
+      return validTokens; // No tokens present
+    }
+
     try {
       JSONArray encodedTokens = new JSONArray(encodedTokensJson);
 
       for (int i = 0; i < encodedTokens.length(); i++) {
-
         try {
           Token token = Token.decode(encodedTokens.getString(i));
 
-        if (token.verify(packageName, versionName, domainName)) {
-          validTokens.add(token.payload);
-        }
+          if (token.verify(packageName, versionName, domainName)) {
+            validTokens.add(token.payload);
+          }
 
-      } catch (IllegalArgumentException e) {
-        Log.w(LOGTAG, "Failed to decode token: " + e.getMessage());
-        continue; // Skip invalid tokens
+        } catch (IllegalArgumentException e) {
+          Log.w(LOGTAG, "Failed to decode token: " + e.getMessage());
+          continue; // Skip invalid tokens
+        }
       }
-    }
     } catch (JSONException e) {
       Log.w(LOGTAG, "Failed to parse tokens JSON: " + e.getMessage());
-      return new ArrayList<TokenPayload>();   // Return empty list on JSON error
+      return new ArrayList<>(); // Return empty list on JSON error
     }
 
     return validTokens;
   }
 
+  //* returns valid tokens as Gecko Bundle Array */
+  @AnyThread
+  private static GeckoBundle[] getPayloadBundles(List<TokenPayload> validTokenPayloads, String packageName, String versionName, String domainName) {
+    GeckoBundle[] validTokenBundles = new GeckoBundle[validTokenPayloads.size()];
+    int i = 0;
+    for (TokenPayload payload : validTokenPayloads) {
+        GeckoBundle tokenBundle = new GeckoBundle();
+        tokenBundle.putString("cookieName", payload.cookieName);
+        tokenBundle.putString("cookieValue", payload.cookieValue);
+        tokenBundle.putString("applicationId", payload.applicationId);
+        tokenBundle.putString("versionName", payload.versionName);
+        tokenBundle.putString("destinationDomain", payload.destinationDomain);
+
+        validTokenBundles[i] = tokenBundle;
+        i++;
+    }
+
+    return validTokenBundles;
+  }
+
   //* returns a (Gecko) bundle of cookies of valid Tokens */
   @AnyThread
-  private static GeckoBundle getCookieBundle(String encodedFinalTokensStr, String packageName, String versionName, String domainName) {
-    try {
-
-      if (encodedFinalTokensStr == null || packageName == null || versionName == null || domainName == null) {
-        Log.w(LOGTAG, "Missing required headers for capability tokens: "
-            + "final_tokens, package_name, version_name, or domain_name.");
-
-        return null;
-      }
-
-      if (encodedFinalTokensStr.isEmpty()) {
-        Log.d(LOGTAG, "No final tokens found for domain " + domainName + " => No additional Cookies to attach to HTTP-Request!");
-        return new GeckoBundle(); // No tokens to process, return empty bundle.
-      }
-
+  private static GeckoBundle getCookieBundle(List<TokenPayload> validTokenPayloads, String packageName, String versionName, String domainName) {
       GeckoBundle cookieBundle = new GeckoBundle();
-
-      // Split tokens by comma (assuming comma-separated token list)
-      JSONArray encodedFinalTokensArray = new JSONArray(encodedFinalTokensStr);
-
-      for (int i = 0; i < encodedFinalTokensArray.length(); i++) {
-        String tokenString = encodedFinalTokensArray.getString(i);
-
-        try {
-          Token token = Token.decode(tokenString);
-
-          if (!token.verify(packageName, versionName, domainName)) {
-            Log.w(LOGTAG, "Token verification failed for domain: " + domainName);
-            continue;
-          }
-
-          TokenPayload payload = token.payload;
+      for (TokenPayload payload : validTokenPayloads) {
           cookieBundle.putString(payload.cookieName, payload.cookieValue);
 
-        } catch (IllegalArgumentException e) {
-          Log.w(LOGTAG, "Failed to decode token: " + e.getMessage());
-          continue;
-        }
       }
 
       return cookieBundle;
-
-    } catch (Exception e) {
-      Log.e(LOGTAG, "Error processing capability tokens", e);
-      return null;
-    }
   }
 
   /**
