@@ -47,5 +47,18 @@ public final class TokenPayload {
     public boolean hasAnyAccess() {
         return accessRights != AccessRights.NONE;
     }
+
+    @Override
+    public String toString() {
+        return "TokenPayload{" +
+                "cookieName='" + cookieName + '\'' +
+                ", cookieValue='" + cookieValue + '\'' +
+                ", applicationId='" + applicationId + '\'' +
+                ", versionName='" + versionName + '\'' +
+                ", destinationDomain='" + destinationDomain + '\'' +
+                ", accessRights=" + accessRights +
+                ", globalJar=" + globalJar +
+                '}';
+    }
 }
 

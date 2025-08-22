@@ -138,7 +138,7 @@ public final class Token {
         if (!payload.versionName.equals(expectedVersionName)) {
             return false; // Version name mismatch
         }
-        if (!isValidDomainMatch(expectedDomainName, payload.destinationDomain)/) {
+        if (!isValidDomainMatch(expectedDomainName, payload.destinationDomain)) {
             return false; // Domain name mismatch
         }
         return verifySignature(); // Verify the signature

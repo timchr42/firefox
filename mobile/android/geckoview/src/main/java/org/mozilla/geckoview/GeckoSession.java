@@ -2131,8 +2131,8 @@ public class GeckoSession {
     private GeckoSession mReferrerSession;
     private String mReferrerUri;
     private GeckoBundle mHeaders;
-    private GeckoBundle mInAppCookies; // BYETRACK: Store cookies for the app (retrieved from capModData)
-    private String mCapModData; // Additional capability modification data
+    private GeckoBundle mInAppCookies; // BYETRACK: Store cookies for the app (retrieved from capModData loader)
+    private List<TokenPayload> mWildCardTokens; // BYETRACK: Store decoded & validated tokens
     private @LoadFlags int mLoadFlags = LOAD_FLAGS_NONE;
     private boolean mIsDataUri;
     private @HeaderFilter int mHeaderFilter = HEADER_FILTER_CORS_SAFELISTED;
@@ -2315,7 +2315,10 @@ public class GeckoSession {
       String domainName = data.get("domain_name");
 
       mInAppCookies = getCookieBundle(finalTokensStr, packageName, versionName, domainName);
-      // mWildCardTokens = getValidTokens(wildcardTokensStr, packageName, versionName, domainName);
+      mWildCardTokens = getValidTokenPayloads(wildcardTokensStr, packageName, versionName, domainName);
+
+      Log.d(LOGTAG, "extracted cookies from final tokens: " + mInAppCookies);
+      Log.d(LOGTAG, "wildcard tokens payloads: " + mWildCardTokens.toString());
       return this;
     }
 
@@ -2469,11 +2472,7 @@ public class GeckoSession {
                 msg.putBundle("headers", request.mHeaders);
               }
 
-              // BYETRACK: Own request field for data
-              if (request.mCapModData != null) {
-                Log.d(LOGTAG, "Data attached to Intent: " + request.mCapModData);
-              }
-
+              // BYETRACK
               // Only attach the cookies to msg instead of all data
               if (request.mInAppCookies != null) {
                 Log.d(LOGTAG, "In-App Cookies attached to Intent: " + request.mInAppCookies);
@@ -2492,8 +2491,8 @@ public class GeckoSession {
 
   //* returns valid tokens as a JSON string */
   @AnyThread
-  private String getValidTokens(String encodedTokensJson, String packageName, String versionName, String domainName) {
-    JSONArray validTokens = new JSONArray();
+  private static List<TokenPayload> getValidTokenPayloads(String encodedTokensJson, String packageName, String versionName, String domainName) {
+    List<TokenPayload> validTokens = new ArrayList<TokenPayload>();
     try {
       JSONArray encodedTokens = new JSONArray(encodedTokensJson);
 
@@ -2503,7 +2502,7 @@ public class GeckoSession {
           Token token = Token.decode(encodedTokens.getString(i));
 
         if (token.verify(packageName, versionName, domainName)) {
-          validTokens.put(token);
+          validTokens.add(token.payload);
         }
 
       } catch (IllegalArgumentException e) {
@@ -2513,10 +2512,10 @@ public class GeckoSession {
     }
     } catch (JSONException e) {
       Log.w(LOGTAG, "Failed to parse tokens JSON: " + e.getMessage());
-      return new JSONArray().toString(); // Return empty array on JSON error
+      return new ArrayList<TokenPayload>();   // Return empty list on JSON error
     }
 
-    return validTokens.toString();
+    return validTokens;
   }
 
   //* returns a (Gecko) bundle of cookies of valid Tokens */
@@ -2532,7 +2531,7 @@ public class GeckoSession {
       }
 
       if (encodedFinalTokensStr.isEmpty()) {
-        Log.d(LOGTAG, "No tokens found for domain " + domainName + "! No additional Cookies to attach to HTTP-Request!");
+        Log.d(LOGTAG, "No final tokens found for domain " + domainName + " => No additional Cookies to attach to HTTP-Request!");
         return new GeckoBundle(); // No tokens to process, return empty bundle.
       }
 

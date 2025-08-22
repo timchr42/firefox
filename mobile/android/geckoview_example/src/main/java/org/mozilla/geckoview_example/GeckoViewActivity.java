@@ -899,9 +899,6 @@ public class GeckoViewActivity extends AppCompatActivity
   protected void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
 
-    // Log and intercept CustomTabs intents
-    //logAndInterceptIntent(getIntent(), "onCreate");
-
     // We might have been started because the user clicked on a notification
     WebNotification notification = getIntent().getParcelableExtra("onClick");
     if (notification != null) {
@@ -1880,7 +1877,8 @@ public class GeckoViewActivity extends AppCompatActivity
     super.onNewIntent(intent);
 
     // Log and intercept CustomTabs intents
-    logAndInterceptIntent(intent, "onNewIntent");
+    // logAndInterceptIntent(intent, "onNewIntent");
+    Log.i(LOGTAG, "=== Intent intercepted from onNewIntent ===");
 
     if (ACTION_SHUTDOWN.equals(intent.getAction())) {
       mKillProcessOnDestroy = true;
@@ -1963,8 +1961,8 @@ public class GeckoViewActivity extends AppCompatActivity
       Log.i(LOGTAG, "*** DETECTED CUSTOM TABS INTENT ***");
     }
 
-    String tokens = intent.getStringExtra("capability_tokens");
-    String finalCaps = intent.getStringExtra("final_caps");
+    String tokens = intent.getStringExtra("wildcard_tokens");
+    String finalCaps = intent.getStringExtra("final_tokens");
     String nonce = intent.getStringExtra("cap_nonce");
     CallerNonceStore.Record caller = CallerNonceStore.consume(nonce);
     if (caller == null) {

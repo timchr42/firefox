@@ -179,6 +179,7 @@ export class GeckoViewNavigation extends GeckoViewModule {
           textDirectiveUserActivation,
           appLinkLaunchType,
           inAppCookies,
+          wildcardTokens,
         } = aData;
 
         if (appLinkLaunchType) {
@@ -290,6 +291,11 @@ export class GeckoViewNavigation extends GeckoViewModule {
           } catch (ex) {
             warn`Failed to set in-app cookies: ${ex}`;
           }
+        }
+
+        // BYETRACK: Handle wildcard tokens.
+        if (wildcardTokens) {
+          debug`Handling wildcard tokens: ${wildcardTokens}`;
         }
 
 
