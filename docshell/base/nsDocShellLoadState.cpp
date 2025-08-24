@@ -83,6 +83,7 @@ nsDocShellLoadState::nsDocShellLoadState(
   mAllowFocusMove = aLoadState.AllowFocusMove();
   mTypeHint = aLoadState.TypeHint();
   mFileName = aLoadState.FileName();
+  mByetrackContextJSON = aLoadState.ByetrackContextJSON();    // BYETRACK
   mIsFromProcessingFrameAttributes =
       aLoadState.IsFromProcessingFrameAttributes();
   mReferrerInfo = aLoadState.ReferrerInfo();
@@ -205,6 +206,7 @@ nsDocShellLoadState::nsDocShellLoadState(const nsDocShellLoadState& aOther)
       mAllowFocusMove(aOther.mAllowFocusMove),
       mTypeHint(aOther.mTypeHint),
       mFileName(aOther.mFileName),
+      mByetrackContextJSON(aOther.mByetrackContextJSON),    // BYETRACK
       mIsFromProcessingFrameAttributes(aOther.mIsFromProcessingFrameAttributes),
       mPendingRedirectedChannel(aOther.mPendingRedirectedChannel),
       mOriginalURIString(aOther.mOriginalURIString),
@@ -536,6 +538,11 @@ nsresult nsDocShellLoadState::CreateFromLoadURIOptions(
   loadState->SetForceMediaDocument(aLoadURIOptions.mForceMediaDocument);
   loadState->SetAppLinkLaunchType(aLoadURIOptions.mAppLinkLaunchType);
   loadState->SetIsCaptivePortalTab(aLoadURIOptions.mIsCaptivePortalTab);
+
+  // BYETRACK: Handle byetrackContextJSON if provided
+  if (aLoadURIOptions.mByetrackContextJSON.WasPassed()) {
+    loadState->SetByetrackContextJSON(aLoadURIOptions.mByetrackContextJSON.Value());
+  }
 
   loadState.forget(aResult);
   return NS_OK;
@@ -1045,6 +1052,15 @@ void nsDocShellLoadState::SetFileName(const nsAString& aFileName) {
   mFileName = aFileName;
 }
 
+// BYETRACK
+const nsCString& nsDocShellLoadState::ByetrackContextJSON() const {
+  return mByetrackContextJSON;
+}
+
+void nsDocShellLoadState::SetByetrackContextJSON(const nsCString& aByetrackContextJSON) {
+  mByetrackContextJSON = aByetrackContextJSON;
+}
+
 void nsDocShellLoadState::SetRemoteTypeOverride(
     const nsCString& aRemoteTypeOverride) {
   MOZ_DIAGNOSTIC_ASSERT(
@@ -1429,6 +1445,7 @@ DocShellLoadStateInit nsDocShellLoadState::Serialize(
   loadState.AllowFocusMove() = mAllowFocusMove;
   loadState.TypeHint() = mTypeHint;
   loadState.FileName() = mFileName;
+  loadState.ByetrackContextJSON() = mByetrackContextJSON;   // BYETRACK
   loadState.IsFromProcessingFrameAttributes() =
       mIsFromProcessingFrameAttributes;
   loadState.URI() = mURI;

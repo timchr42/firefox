@@ -109,8 +109,10 @@
 #include "mozilla/net/SFVService.h"
 #include "mozilla/dom/ContentChild.h"
 #include "nsQueryObject.h"
+#include "mozilla/Printf.h" // for printf_stderr
 
 using mozilla::dom::ForceMediaDocument;
+
 using mozilla::dom::RequestMode;
 
 #define LOGORB(msg, ...)                \
@@ -333,6 +335,14 @@ nsresult HttpBaseChannel::Init(nsIURI* aURI, uint32_t aCaps,
   LOG1(("HttpBaseChannel::Init [this=%p]\n", this));
 
   MOZ_ASSERT(aURI, "null uri");
+
+
+  // BYETRACK: Log context for verification
+  nsCString byetrackContext;
+  if (NS_SUCCEEDED(aLoadInfo->GetByetrackContextJSON(byetrackContext)) &&
+      !byetrackContext.IsEmpty()) {
+    printf_stderr("BYETRACK: Channel received context: %s\n", byetrackContext.get());
+  }
 
   mURI = aURI;
   mOriginalURI = aURI;
@@ -1357,6 +1367,20 @@ void HttpBaseChannel::MaybeResumeAsyncOpen() {
 
   if (!LoadAsyncOpenWaitingForStreamNormalization()) {
     return;
+  }
+
+  // BYETRACK: Log context when opening channel
+  if (mLoadInfo) {
+    nsCString byetrackContext;
+    if (NS_SUCCEEDED(mLoadInfo->GetByetrackContextJSON(byetrackContext)) &&
+        !byetrackContext.IsEmpty()) {
+      nsCOMPtr<nsIURI> uri;
+      GetURI(getter_AddRefs(uri));
+      nsCString uriSpec;
+      if (uri) uri->GetSpec(uriSpec);
+      LOG(("BYETRACK: Opening channel for %s with context: %s",
+           uriSpec.get(), byetrackContext.get()));
+    }
   }
 
   nsCOMPtr<nsIStreamListener> listener;

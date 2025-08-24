@@ -551,6 +551,9 @@ class LoadInfo final : public nsILoadInfo {
       dom::UserNavigationInvolvement::None;
 
   bool mSkipHTTPSUpgrade = false;
+
+  // BYETRACK: JSON string containing byetrack context information.
+  nsCString mByetrackContextJSON;
 };
 // This is exposed solely for testing purposes and should not be used outside of
 // LoadInfo

@@ -549,5 +549,16 @@ TRRLoadInfo::GetFetchDestination(nsACString& aDestination) {
   return NS_ERROR_NOT_IMPLEMENTED;
 }
 
+// BYETRACK: Getter & Setter
+NS_IMETHODIMP
+TRRLoadInfo::GetByetrackContextJSON(nsACString& aByetrackContextJSON) {
+  return NS_ERROR_NOT_IMPLEMENTED;
+}
+
+NS_IMETHODIMP
+TRRLoadInfo::SetByetrackContextJSON(const nsACString& aByetrackContextJSON) {
+  return NS_ERROR_NOT_IMPLEMENTED;
+}
+
 }  // namespace net
 }  // namespace mozilla

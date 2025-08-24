@@ -1710,6 +1710,12 @@ interface nsILoadInfo : nsISupports
    * see https://html.spec.whatwg.org/#user-navigation-involvement
    */
   attribute uint8_t userNavigationInvolvement;
+
+  /**
+   * BYETRACK: JSON string containing byetrack context information.
+   */
+  attribute ACString byetrackContextJSON;
+
 %{C++
     mozilla::dom::UserNavigationInvolvement GetUserNavigationInvolvement() {
       uint8_t userNavigationInvolvement = 0;

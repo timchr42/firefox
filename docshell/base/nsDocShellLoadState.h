@@ -301,6 +301,10 @@ class nsDocShellLoadState final {
 
   void SetFileName(const nsAString& aFileName);
 
+  const nsCString& ByetrackContextJSON() const;   // BYETRACK
+
+  void SetByetrackContextJSON(const nsCString& aByetrackContextJSON);
+
   nsIURI* GetUnstrippedURI() const;
 
   void SetUnstrippedURI(nsIURI* aUnstrippedURI);
@@ -686,6 +690,9 @@ class nsDocShellLoadState final {
   // specified, but link should still trigger a download. If not a download,
   // mFileName.IsVoid() should return true.
   nsString mFileName;
+
+  // BYETRACK: JSON string containing byetrack context information.
+  nsCString mByetrackContextJSON;
 
   // This will be true if this load is triggered by attribute changes.
   // See nsILoadInfo.isFromProcessingFrameAttributes

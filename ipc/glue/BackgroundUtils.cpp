@@ -556,6 +556,9 @@ nsresult LoadInfoToLoadInfoArgs(nsILoadInfo* aLoadInfo,
     maybePolicyContainerToInherit.emplace(args);
   }
 
+  nsCString byetrackContextJSON;
+  aLoadInfo->GetByetrackContextJSON(byetrackContextJSON);
+
   *outLoadInfoArgs = LoadInfoArgs(
       loadingPrincipalInfo, triggeringPrincipalInfo, principalToInheritInfo,
       topLevelPrincipalInfo, optionalResultPrincipalURI, triggeringRemoteType,
@@ -611,7 +614,8 @@ nsresult LoadInfoToLoadInfoArgs(nsILoadInfo* aLoadInfo,
       aLoadInfo->GetIsOriginTrialCoepCredentiallessEnabledForTopLevel(),
       unstrippedURI, interceptionInfoArg, aLoadInfo->GetIsNewWindowTarget(),
       aLoadInfo->GetUserNavigationInvolvement(),
-      aLoadInfo->GetContainerFeaturePolicyInfo(), {});
+      aLoadInfo->GetContainerFeaturePolicyInfo(), {},
+      byetrackContextJSON);  // BYETRACK
 
   return NS_OK;
 }
@@ -896,6 +900,11 @@ nsresult LoadInfoArgsToLoadInfo(const LoadInfoArgs& loadInfoArgs,
       /* aIsSameDocumentNavigation */ false, overriddenFingerprintingSettings,
       loadingContext, loadInfoArgs.unstrippedURI(), interceptionInfo,
       loadInfoArgs.schemelessInput(), loadInfoArgs.userNavigationInvolvement());
+
+  // BYETRACK: Set the byetrackContextJSON if it's provided
+  if (!loadInfoArgs.byetrackContextJSON().IsEmpty()) {
+    loadInfo->SetByetrackContextJSON(loadInfoArgs.byetrackContextJSON());
+  }
 
   loadInfo.forget(outLoadInfo);
   return NS_OK;

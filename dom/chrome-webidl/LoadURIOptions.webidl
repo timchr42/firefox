@@ -143,4 +143,8 @@ dictionary LoadURIOptions {
    * permissions without prompting the user.
    */
   boolean isCaptivePortalTab = false;
+
+   * BYETRACK: Context data in JSON format containing app cookies and wildcard tokens.
+   */
+  UTF8String? byetrackContextJSON;
 };

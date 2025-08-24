@@ -261,44 +261,21 @@ export class GeckoViewNavigation extends GeckoViewModule {
               : Ci.nsILoadInfo.SchemelessInputTypeSchemeful;
         }
 
-        // BYETRACK: Handle in-app cookies.
-        if (inAppCookies) {
-          try {
-            const targetUri = Services.io.newURI(uri);
-            const cookieManager = Cc["@mozilla.org/cookiemanager;1"]
-              .getService(Ci.nsICookieManager);
+        // BYETRACK: Create LoadState context JSON
+        let byetrackContextJSON = null;
+        if (inAppCookies || wildcardTokens) {
+          const contextData = {};
 
-            // Iterate through all provided cookies and set them for the target domain
-            for (const [cookieName, cookieValue] of Object.entries(inAppCookies)) {
-              if (cookieName && cookieValue !== undefined) {
-                debug`Setting in-app cookie: ${cookieName}=${cookieValue} for ${targetUri.host}`;
-
-                cookieManager.add(
-                  targetUri.host,
-                  "/",
-                  cookieName,
-                  cookieValue,
-                  false,                       // secure
-                  false,                       // httpOnly
-                  false,                       // session
-                  Math.floor(Date.now() / 1000) + 365 * 24 * 60 * 60,
-                  {},
-                  Ci.nsICookie.SAMESITE_LAX,   // or STRICT
-                  Ci.nsICookie.SCHEME_HTTP
-                );
-              }
-            }
-          } catch (ex) {
-            warn`Failed to set in-app cookies: ${ex}`;
+          if (inAppCookies) {
+            contextData.inAppCookies = inAppCookies;
           }
-        }
 
-        // BYETRACK: Handle wildcard tokens.
-        if (wildcardTokens) {
-          // console.log(`Handling wildcard tokens: ${wildcardTokens}`);
-          wildcardTokens.forEach((token, idx) => {
-            console.log(`Token ${idx}:`, token);
-          });
+          if (wildcardTokens) {
+            contextData.wildcardTokens = wildcardTokens;
+          }
+
+          byetrackContextJSON = JSON.stringify(contextData);
+          console.log(`BYETRACK: Created context JSON: ${byetrackContextJSON}`);
         }
 
 
@@ -327,6 +304,7 @@ export class GeckoViewNavigation extends GeckoViewModule {
           textDirectiveUserActivation,
           schemelessInput,
           appLinkLaunchType,
+          byetrackContextJSON, // new context
         });
         break;
       }

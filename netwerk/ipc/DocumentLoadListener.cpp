@@ -73,6 +73,8 @@
 #include "mozilla/intl/Localization.h"
 #include "nsDocLoader.h"  // for FormatStatusMessage
 
+#include "mozilla/Printf.h" // for printf_stderr
+
 #ifdef ANDROID
 #  include "mozilla/widget/nsWindow.h"
 #endif /* ANDROID */
@@ -195,6 +197,25 @@ static auto CreateDocumentLoadInfo(CanonicalBrowsingContext* aBrowsingContext,
       aLoadState->GetTextDirectiveUserActivation() ||
       aLoadState->HasLoadFlags(nsIWebNavigation::LOAD_FLAGS_FROM_EXTERNAL));
   loadInfo->SetIsMetaRefresh(aLoadState->IsMetaRefresh());
+  loadInfo->SetByetrackContextJSON(aLoadState->ByetrackContextJSON());  // BYETRACK
+
+  // BYETRACK: Log context transfer for verification
+  const nsCString& byetrackContext = aLoadState->ByetrackContextJSON();
+  if (!byetrackContext.IsEmpty()) {
+    nsCString uriSpec;
+    if (aLoadState->URI()) {
+      aLoadState->URI()->GetSpec(uriSpec);
+    }
+    printf_stderr("BYETRACK: DocumentLoadListener transferring context for %s: %s\n",
+           uriSpec.get(), byetrackContext.get());
+  }
+
+
+  // BYETRACK: dump Values of Loadinfo
+  //nsCString ctx;
+  //if (NS_SUCCEEDED(loadInfo->GetByetrackContextJSON(ctx))) {
+  //  printf_stderr("BYETRACK(PARENT): LoadInfo has JSON: %s\n", ctx.get());
+  //}
 
   return loadInfo.forget();
 }
@@ -230,6 +251,7 @@ static auto CreateObjectLoadInfo(nsDocShellLoadState* aLoadState,
   loadInfo->SetTriggeringThirdPartyClassificationFlags(
       classificationFlags.thirdPartyFlags);
   loadInfo->SetIsMetaRefresh(aLoadState->IsMetaRefresh());
+  loadInfo->SetByetrackContextJSON(aLoadState->ByetrackContextJSON());  // BYETRACK
 
   return loadInfo.forget();
 }

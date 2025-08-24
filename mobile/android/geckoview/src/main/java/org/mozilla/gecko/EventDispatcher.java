@@ -383,7 +383,7 @@ public final class EventDispatcher extends JNIObject {
   @AnyThread
   private void dispatch(
       final String type, final GeckoBundle message, final EventCallback callback) {
-    Log.i(LOGTAG, "BYETRACK TEST: Dispatching event: " + type + ", message: " + message);
+    //Log.i(LOGTAG, "BYETRACK TEST: Dispatching event: " + type + ", message: " + message);
     final boolean isGeckoReady;
     synchronized (this) {
       isGeckoReady = isReadyForDispatchingToGecko();

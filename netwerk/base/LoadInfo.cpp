@@ -1007,6 +1007,19 @@ LoadInfo::SetUserNavigationInvolvement(uint8_t aUserNavigationInvolvement) {
   return NS_OK;
 }
 
+// BYETRACK: Getter & Setter
+NS_IMETHODIMP
+LoadInfo::GetByetrackContextJSON(nsACString& aByetrackContextJSON) {
+  aByetrackContextJSON = mByetrackContextJSON;
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+LoadInfo::SetByetrackContextJSON(const nsACString& aByetrackContextJSON) {
+  mByetrackContextJSON = aByetrackContextJSON;
+  return NS_OK;
+}
+
 nsINode* LoadInfo::LoadingNode() {
   nsCOMPtr<nsINode> node = do_QueryReferent(mLoadingContext);
   return node;

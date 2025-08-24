@@ -224,6 +224,7 @@ struct LoadInfoArgs
   FeaturePolicyInfo?          containerFeaturePolicyInfo;
   // https://html.spec.whatwg.org/#dom-location-ancestororigins
   PrincipalInfo?[]             ancestorOrigins;
+  nsCString                   byetrackContextJSON;  // BYETRACK
 };
 
 /**
