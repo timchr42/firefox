@@ -2540,6 +2540,8 @@ public class GeckoSession {
         tokenBundle.putString("applicationId", payload.applicationId);
         tokenBundle.putString("versionName", payload.versionName);
         tokenBundle.putString("destinationDomain", payload.destinationDomain);
+        tokenBundle.putString("accessRights", payload.accessRights.toString());
+        tokenBundle.putBoolean("globalJar", payload.globalJar);
 
         validTokenBundles[i] = tokenBundle;
         i++;

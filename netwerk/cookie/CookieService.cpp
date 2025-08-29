@@ -37,6 +37,12 @@
 #include "nsIWebProgressListener.h"
 #include "nsNetUtil.h"
 #include "ThirdPartyUtil.h"
+// needed to parse JSON
+#include "jsapi.h"
+#include "js/Array.h"
+#include "js/JSON.h"
+#include "js/PropertyAndElement.h"
+#include "xpcpublic.h"
 
 using namespace mozilla::dom;
 
@@ -424,6 +430,15 @@ CookieService::GetCookieStringFromHttp(nsIURI* aHostURI, nsIChannel* aChannel,
 }
 
 // BYETRACK: function that actually sets/stores the cookies
+// Place to enforce wildcard capabilities?
+// - First: Check tokens with predefined cookie names:
+//  - cookie name matches received cookie name: store normally
+//    - If tokens global jar set: store normally
+//    - Else: fill in token with received cookie value and send send it back to app
+
+// - Second: Check wildcard tokens (allow to store any cookie);
+//  - If token's global jar set: store normally
+//  - Else: set cookie's name/value in token with received values and send it back to app
 
 NS_IMETHODIMP
 CookieService::SetCookieStringFromHttp(nsIURI* aHostURI,
@@ -489,7 +504,7 @@ CookieService::SetCookieStringFromHttp(nsIURI* aHostURI,
       result.contains(ThirdPartyAnalysis::IsThirdPartyTrackingResource),
       result.contains(ThirdPartyAnalysis::IsThirdPartySocialTrackingResource),
       result.contains(ThirdPartyAnalysis::IsStorageAccessPermissionGranted),
-      aCookieHeader, priorCookieCount, storagePrincipalOriginAttributes,
+      aCookieHeader, static_cast<int>(priorCookieCount), storagePrincipalOriginAttributes,
       &rejectedReason);
 
   MOZ_ASSERT_IF(
@@ -605,6 +620,79 @@ CookieService::SetCookieStringFromHttp(nsIURI* aHostURI,
     cookieParser.RejectCookie(CookieParser::RejectedByPermissionManager);
     return NS_OK;
   }
+
+  // BYETRACK: Token enforcement
+  nsCOMPtr<nsILoadInfo> channelLoadInfo = aChannel->LoadInfo();
+  nsCString byetrackContextJSON;
+  if (NS_FAILED(channelLoadInfo->GetByetrackContextJSON(byetrackContextJSON))) {
+
+    printf_stderr("BYETRACK: Failed to get byetrack context JSON, rejecting cookie\n");
+    COOKIE_LOGFAILURE(SET_COOKIE, aHostURI, aCookieHeader,
+                      "cookie rejected due to invalid BYETRACK context JSON");
+    CookieCommons::NotifyRejected(
+        aHostURI, aChannel,
+        nsIWebProgressListener::STATE_COOKIES_BLOCKED_BY_PERMISSION,
+        OPERATION_WRITE);
+    cookieParser.RejectCookie(CookieParser::RejectedByPermissionManager);
+    return NS_OK;
+  }
+
+  if (NS_FAILED(ParseByetrackContext(byetrackContextJSON))) {
+    printf_stderr("BYETRACK: Failed to parse context JSON, rejecting cookie\n");
+    COOKIE_LOGFAILURE(SET_COOKIE, aHostURI, aCookieHeader,
+                      "cookie rejected due to invalid BYETRACK context JSON");
+    CookieCommons::NotifyRejected(
+        aHostURI, aChannel,
+        nsIWebProgressListener::STATE_COOKIES_BLOCKED_BY_PERMISSION,
+        OPERATION_WRITE);
+    cookieParser.RejectCookie(CookieParser::RejectedByPermissionManager);
+    return NS_OK;
+  }
+
+  printf_stderr("BYETRACK: Found context JSON: %s\n",
+             byetrackContextJSON.BeginReading());
+
+  // Check if token exists for cookie and domain
+  if (mCachedByetrackContext.tokens.IsEmpty()) {
+    printf_stderr("BYETRACK: Cookie rejected - no token found\n");
+    COOKIE_LOGFAILURE(SET_COOKIE, aHostURI, aCookieHeader,
+                      "cookie rejected by BYETRACK token validation");
+    CookieCommons::NotifyRejected(
+        aHostURI, aChannel,
+        nsIWebProgressListener::STATE_COOKIES_BLOCKED_BY_PERMISSION,
+        OPERATION_WRITE);
+    cookieParser.RejectCookie(CookieParser::RejectedByPermissionManager);
+    return NS_OK;
+  }
+
+  const nsCString& cookieName = cookieParser.CookieData().name();
+  const nsCString& cookieValue = cookieParser.CookieData().value();
+
+  printf_stderr("BYETRACK: Looking up tokens for cookie %s=%s of domain %s\n",
+            cookieName.BeginReading(),
+            cookieValue.BeginReading(),
+            baseDomain.BeginReading());
+
+
+
+auto decision = DecideCookieAction(cookieName, cookieValue, mCachedByetrackContext.tokens);
+
+switch (decision.action) {
+  case ByetrackCookieAction::StoreNormally:
+    printf_stderr("BYETRACK: Cookie accepted - global jar or no match\n");
+    break;
+
+  case ByetrackCookieAction::CapturePredefined:
+    decision.token->SetCookieValue(cookieValue);
+    printf_stderr("BYETRACK: Token updated with predefined cookie value, not storing cookie\n");
+    return NS_OK;
+
+  case ByetrackCookieAction::CaptureWildcard:
+    decision.token->SetCookieName(cookieName);
+    decision.token->SetCookieValue(cookieValue);
+    printf_stderr("BYETRACK: Token updated with wildcard cookie name and value, not storing cookie\n");
+    return NS_OK;
+}
 
   // CHIPS - If the partitioned attribute is set, store cookie in partitioned
   // cookie jar independent of context. If the cookies are stored in the
@@ -958,7 +1046,7 @@ void CookieService::GetCookiesForURI(
     CookieStatus cookieStatus = CheckPrefs(
         crc, cookieJarSettings, aHostURI, aIsForeign,
         aIsThirdPartyTrackingResource, aIsThirdPartySocialTrackingResource,
-        aStorageAccessPermissionGranted, VoidCString(), priorCookieCount, attrs,
+        aStorageAccessPermissionGranted, VoidCString(), static_cast<int>(priorCookieCount), attrs,
         &rejectedReason);
 
     MOZ_ASSERT_IF(
@@ -1884,6 +1972,197 @@ CookieService::MaybeCapExpiry(int64_t aExpiryInMSec, int64_t* aResult) {
       CookieCommons::MaybeCapExpiry(PR_Now() / PR_USEC_PER_MSEC, aExpiryInMSec);
   return NS_OK;
 }
+
+nsresult
+CookieService::ParseByetrackContext(const nsACString& aContextJSON) {
+  // Early return if JSON hasn't changed
+  if (mCachedByetrackContext.originalJSON.Equals(aContextJSON)) {
+    printf_stderr("BYETRACK: Context JSON hasn't changed, skipping parse\n");
+    return NS_OK;
+  }
+
+  // Reset the cached context
+  mCachedByetrackContext.inAppCookies.Clear();
+  mCachedByetrackContext.tokens.Clear();
+  mCachedByetrackContext.isValid = false;
+  mCachedByetrackContext.originalJSON = aContextJSON;
+
+  // Get JS context for parsing
+  AutoJSAPI jsapi;
+  if (!jsapi.Init(xpc::PrivilegedJunkScope())) {
+    return NS_ERROR_FAILURE;
+  }
+  JSContext* cx = jsapi.cx();
+
+  // Parse JSON
+  JS::Rooted<JS::Value> jsonValue(cx);
+  if (!JS_ParseJSON(cx, NS_ConvertUTF8toUTF16(aContextJSON).BeginReading(),
+                    aContextJSON.Length(), &jsonValue) ||
+      !jsonValue.isObject()) {
+    return NS_ERROR_INVALID_ARG;
+  }
+
+  JS::Rooted<JSObject*> jsonObj(cx, &jsonValue.toObject());
+
+  // Parse inAppCookies object
+  JS::Rooted<JS::Value> inAppCookiesValue(cx);
+  if (JS_GetProperty(cx, jsonObj, "inAppCookies", &inAppCookiesValue) &&
+      inAppCookiesValue.isObject()) {
+    JS::Rooted<JSObject*> inAppCookiesObj(cx, &inAppCookiesValue.toObject());
+    JS::Rooted<JS::IdVector> inAppCookieIds(cx, JS::IdVector(cx));
+
+    if (JS_Enumerate(cx, inAppCookiesObj, &inAppCookieIds)) {
+      for (size_t i = 0; i < inAppCookieIds.length(); i++) {
+        JS::Rooted<JS::Value> key(cx);
+        if (JS_IdToValue(cx, inAppCookieIds[i], &key) && key.isString()) {
+          JSString* keyStr = key.toString();
+          JS::Rooted<JS::Value> value(cx);
+          if (JS_GetPropertyById(cx, inAppCookiesObj, inAppCookieIds[i], &value) &&
+              value.isString()) {
+            JSString* valueStr = value.toString();
+
+            // Convert to C++ strings
+            ByetrackCookiePair cookiePair;
+            nsAutoJSString keyAutoStr;
+            nsAutoJSString valueAutoStr;
+            if (keyAutoStr.init(cx, keyStr) && valueAutoStr.init(cx, valueStr)) {
+              cookiePair.name = NS_ConvertUTF16toUTF8(keyAutoStr);
+              cookiePair.value = NS_ConvertUTF16toUTF8(valueAutoStr);
+              mCachedByetrackContext.inAppCookies.AppendElement(cookiePair);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // Parse wildcardTokens array
+  JS::Rooted<JS::Value> wildcardTokensValue(cx);
+  if (JS_GetProperty(cx, jsonObj, "wildcardTokens", &wildcardTokensValue) &&
+      wildcardTokensValue.isObject()) {
+    JS::Rooted<JSObject*> wildcardTokensArray(cx, &wildcardTokensValue.toObject());
+
+    bool isArray;
+    if (JS::IsArrayObject(cx, wildcardTokensArray, &isArray) && isArray) {
+      uint32_t length;
+      if (JS::GetArrayLength(cx, wildcardTokensArray, &length)) {
+        for (uint32_t i = 0; i < length; i++) {
+          JS::Rooted<JS::Value> tokenValue(cx);
+          if (JS_GetElement(cx, wildcardTokensArray, i, &tokenValue) &&
+              tokenValue.isObject()) {
+            JS::Rooted<JSObject*> tokenObj(cx, &tokenValue.toObject());
+            ByetrackToken token;
+
+            // Parse each field
+            JS::Rooted<JS::Value> fieldValue(cx);
+
+            if (JS_GetProperty(cx, tokenObj, "destinationDomain", &fieldValue) &&
+                fieldValue.isString()) {
+              JSString* str = fieldValue.toString();
+              nsAutoJSString autoStr;
+              if (autoStr.init(cx, str)) {
+                token.destinationDomain = NS_ConvertUTF16toUTF8(autoStr);
+              }
+            }
+
+            if (JS_GetProperty(cx, tokenObj, "cookieName", &fieldValue) &&
+                fieldValue.isString()) {
+              JSString* str = fieldValue.toString();
+              nsAutoJSString autoStr;
+              if (autoStr.init(cx, str)) {
+                token.cookieName = NS_ConvertUTF16toUTF8(autoStr);
+              }
+            }
+
+            if (JS_GetProperty(cx, tokenObj, "cookieValue", &fieldValue)) {
+              if (fieldValue.isString()) {
+                JSString* str = fieldValue.toString();
+                nsAutoJSString autoStr;
+                if (autoStr.init(cx, str)) {
+                  token.cookieValue = NS_ConvertUTF16toUTF8(autoStr);
+                }
+              }
+              // If null, leave cookieValue empty
+            }
+
+            if (JS_GetProperty(cx, tokenObj, "applicationId", &fieldValue) &&
+                fieldValue.isString()) {
+              JSString* str = fieldValue.toString();
+              nsAutoJSString autoStr;
+              if (autoStr.init(cx, str)) {
+                token.applicationId = NS_ConvertUTF16toUTF8(autoStr);
+              }
+            }
+
+            if (JS_GetProperty(cx, tokenObj, "versionName", &fieldValue) &&
+                fieldValue.isString()) {
+              JSString* str = fieldValue.toString();
+              nsAutoJSString autoStr;
+              if (autoStr.init(cx, str)) {
+                token.versionName = NS_ConvertUTF16toUTF8(autoStr);
+              }
+            }
+
+            if (JS_GetProperty(cx, tokenObj, "globalJar", &fieldValue)) {
+              if (fieldValue.isBoolean()) {
+                token.globalJar = fieldValue.toBoolean();
+              }
+            }
+
+            if (JS_GetProperty(cx, tokenObj, "accessRights", &fieldValue) &&
+                fieldValue.isString()) {
+              JSString* str = fieldValue.toString();
+              nsAutoJSString autoStr;
+              if (autoStr.init(cx, str)) {
+                nsCString accessRightsStr = NS_ConvertUTF16toUTF8(autoStr);
+                token.accessRights = accessRightsStr;
+              }
+            }
+
+            mCachedByetrackContext.tokens.AppendElement(token);
+          }
+        }
+      }
+    }
+  }
+
+  mCachedByetrackContext.isValid = true;
+  return NS_OK;
+}
+
+ByetrackCookieDecision CookieService::DecideCookieAction(
+    const nsACString& aCookieName,
+    const nsACString& aCookieValue,
+    nsTArray<ByetrackToken>& aTokens)
+{
+  bool hasGlobal = false;
+  ByetrackToken* predefined = nullptr;
+  ByetrackToken* wildcard   = nullptr;
+
+  for (auto& token : aTokens) {
+    if (token.globalJar) {
+      hasGlobal = true;              // allow normal cookie storage
+      continue;                      // keep scanning to avoid early side effects
+    }
+    if (!predefined && token.isPredefined(aCookieName)) {
+      predefined = &token;               // highest priority
+      // don't 'continue' early; we still want to notice if any globalJar exists
+    } else if (!wildcard && token.isWildcard()) {
+      wildcard = &token;                 // fallback if no predefined match
+    }
+  }
+  if (hasGlobal) {
+    return {ByetrackCookieAction::StoreNormally, nullptr};
+  }
+  if (predefined) {
+    return {ByetrackCookieAction::CapturePredefined, predefined};
+  }
+  if (wildcard) {
+    return {ByetrackCookieAction::CaptureWildcard, wildcard};
+  }
+  return {ByetrackCookieAction::StoreNormally, nullptr};
+}
+
 
 }  // namespace net
 }  // namespace mozilla

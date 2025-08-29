@@ -39,7 +39,7 @@ public final class Token {
                 JSONObject o = new JSONObject(json);
                 return new TokenPayload(
                         o.getString("cookie_name"),
-                        o.opt("cookie_value") == JSONObject.NULL ? null : o.getString("cookie_value"),
+                        o.getString("cookie_value"),
                         o.getString("application_id"),
                         o.getString("version_name"),
                         o.getString("destination_domain"),

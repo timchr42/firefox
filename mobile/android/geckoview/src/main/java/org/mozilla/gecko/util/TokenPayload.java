@@ -3,8 +3,8 @@ package org.mozilla.gecko.util;
 import androidx.annotation.Nullable;
 
 public final class TokenPayload {
-    public final String cookieName;
-    public final @Nullable String cookieValue;      // null if wildcard
+    public final String cookieName;       // "*" for any name
+    public final String cookieValue;      // "*" for any value
     public final String applicationId;
     public final String versionName;
     public final String destinationDomain;
@@ -56,8 +56,8 @@ public final class TokenPayload {
                 ", applicationId='" + applicationId + '\'' +
                 ", versionName='" + versionName + '\'' +
                 ", destinationDomain='" + destinationDomain + '\'' +
-                ", accessRights=" + accessRights +
-                ", globalJar=" + globalJar +
+                ", accessRights='" + accessRights + '\'' +
+                ", globalJar='" + globalJar + '\'' +
                 '}';
     }
 }

@@ -19,6 +19,7 @@
 #include "nsIMemoryReporter.h"
 #include "mozilla/MemoryReporting.h"
 #include "mozilla/MozPromise.h"
+#include "nsTArray.h"
 
 class nsIConsoleReportCollector;
 class nsICookieJarSettings;
@@ -33,6 +34,77 @@ namespace net {
 class CookiePersistentStorage;
 class CookiePrivateStorage;
 class CookieStorage;
+
+// Structure to hold parsed BYETRACK context
+struct ByetrackCookiePair {
+  nsCString name;
+  nsCString value;
+};
+
+struct ByetrackToken {
+  nsCString destinationDomain;
+  nsCString cookieName;
+  nsCString cookieValue;
+  nsCString applicationId;
+  nsCString versionName;
+  nsCString accessRights;
+  bool globalJar;
+
+  ByetrackToken() : versionName("DEFAULT"), accessRights("NONE"), globalJar(false) {}
+
+  // Utility methods matching the Java TokenPayload class
+  bool isWildcard() const {
+    return cookieName.EqualsLiteral("*");
+  }
+
+  bool isPredefined(const nsACString& aCookieName) const {
+    return cookieName.Equals(aCookieName) && cookieValue.EqualsLiteral("*");
+  }
+
+  bool isDefault() const {
+    return versionName.EqualsLiteral("DEFAULT");
+  }
+
+  void SetCookieName(const nsACString& aName) {
+    cookieName = aName;
+  }
+
+  void SetCookieValue(const nsACString& aValue) {
+    cookieValue = aValue;
+  }
+
+  bool canRead() const {
+    return accessRights == "READ" || accessRights == "READ_WRITE";
+  }
+
+  bool canWrite() const {
+    return accessRights == "WRITE" || accessRights == "READ_WRITE";
+  }
+
+  bool hasAnyAccess() const {
+    return accessRights != "NONE";
+  }
+};
+
+enum class ByetrackCookieAction {
+  StoreNormally,
+  CapturePredefined,
+  CaptureWildcard
+};
+
+struct ByetrackCookieDecision {
+  ByetrackCookieAction action;
+  ByetrackToken* token;  // nullptr unless Capture*
+};
+
+struct ByetrackContext {
+  nsTArray<ByetrackCookiePair> inAppCookies;
+  nsTArray<ByetrackToken> tokens;
+  bool isValid;
+  nsCString originalJSON;
+
+  ByetrackContext() : isValid(false) {}
+};
 
 /******************************************************************************
  * CookieService:
@@ -130,11 +202,20 @@ class CookieService final : public nsICookieService,
   nsresult RemoveCookiesFromExactHost(const nsACString& aHost,
                                       const OriginAttributesPattern& aPattern);
 
+  // BYETRACK context parsing and validation methods
+  nsresult ParseByetrackContext(const nsACString& aContextJSON);
+  ByetrackCookieDecision DecideCookieAction(const nsACString& aCookieName,
+                                         const nsACString& aCookieValue,
+                                         nsTArray<ByetrackToken>& aTokens);
+
   // cached members.
   nsCOMPtr<mozIThirdPartyUtil> mThirdPartyUtil;
   nsCOMPtr<nsIEffectiveTLDService> mTLDService;
 
   ThirdPartyCookieBlockingExceptions mThirdPartyCookieBlockingExceptions;
+
+  // Cached BYETRACK context to avoid repeated JSON parsing
+  ByetrackContext mCachedByetrackContext;
 
   // we have two separate Cookie Storages: one for normal browsing and one for
   // private browsing.

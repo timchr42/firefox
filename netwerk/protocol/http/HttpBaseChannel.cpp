@@ -109,7 +109,6 @@
 #include "mozilla/net/SFVService.h"
 #include "mozilla/dom/ContentChild.h"
 #include "nsQueryObject.h"
-#include "mozilla/Printf.h" // for printf_stderr
 
 using mozilla::dom::ForceMediaDocument;
 

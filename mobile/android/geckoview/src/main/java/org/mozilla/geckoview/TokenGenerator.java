@@ -96,7 +96,7 @@ public class TokenGenerator {
                 // Generate one token per cookie name for this domain
                 for (int i = 0; i < cookieNames.length(); i++) {
                     String cookieName = cookieNames.getString(i);
-                    String token = generateSingleToken(domain, cookieName, null, globalJar, packageName, versionName, rights);
+                    String token = generateSingleToken(domain, cookieName, "*", globalJar, packageName, versionName, rights);
                     if (token != null) {
                         tokensByDomain.get(domain).add(token);
                     }
@@ -118,7 +118,7 @@ public class TokenGenerator {
                 // Ensure domain has a list in the map
                 tokensByDomain.putIfAbsent(domain, new ArrayList<>());
 
-                String token = generateSingleToken(domain, "*", null, globalJar, packageName, versionName, rights);
+                String token = generateSingleToken(domain, "*", "*", globalJar, packageName, versionName, rights);
                 if (token != null) {
                     tokensByDomain.get(domain).add(token);
                 }
