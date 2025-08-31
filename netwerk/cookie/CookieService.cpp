@@ -623,10 +623,10 @@ CookieService::SetCookieStringFromHttp(nsIURI* aHostURI,
 
   // BYETRACK: Token enforcement
   nsCOMPtr<nsILoadInfo> channelLoadInfo = aChannel->LoadInfo();
-  nsCString byetrackContextJSON;
-  if (NS_FAILED(channelLoadInfo->GetByetrackContextJSON(byetrackContextJSON))) {
 
-    printf_stderr("BYETRACK: Failed to get byetrack context JSON, rejecting cookie\n");
+  nsCString byetrackWildcardTokensJSON;
+  if (NS_FAILED(channelLoadInfo->GetByetrackWildcardTokens(byetrackWildcardTokensJSON))) {
+    printf_stderr("BYETRACK: Failed to get byetrack wildcard tokens, rejecting cookie\n");
     COOKIE_LOGFAILURE(SET_COOKIE, aHostURI, aCookieHeader,
                       "cookie rejected due to invalid BYETRACK context JSON");
     CookieCommons::NotifyRejected(
@@ -637,10 +637,10 @@ CookieService::SetCookieStringFromHttp(nsIURI* aHostURI,
     return NS_OK;
   }
 
-  if (NS_FAILED(ParseByetrackContext(byetrackContextJSON))) {
-    printf_stderr("BYETRACK: Failed to parse context JSON, rejecting cookie\n");
+  if (NS_FAILED(ParseByetrackTokens(byetrackWildcardTokensJSON))) {
+    printf_stderr("BYETRACK: Failed to parse JSON, rejecting cookie\n");
     COOKIE_LOGFAILURE(SET_COOKIE, aHostURI, aCookieHeader,
-                      "cookie rejected due to invalid BYETRACK context JSON");
+                      "cookie rejected due to invalid JSON");
     CookieCommons::NotifyRejected(
         aHostURI, aChannel,
         nsIWebProgressListener::STATE_COOKIES_BLOCKED_BY_PERMISSION,
@@ -649,8 +649,8 @@ CookieService::SetCookieStringFromHttp(nsIURI* aHostURI,
     return NS_OK;
   }
 
-  printf_stderr("BYETRACK: Found context JSON: %s\n",
-             byetrackContextJSON.BeginReading());
+  printf_stderr("BYETRACK: Found wildcard tokens JSON: %s\n",
+                byetrackWildcardTokensJSON.BeginReading());
 
   // Check if token exists for cookie and domain
   if (mCachedByetrackContext.tokens.IsEmpty()) {
@@ -1974,18 +1974,17 @@ CookieService::MaybeCapExpiry(int64_t aExpiryInMSec, int64_t* aResult) {
 }
 
 nsresult
-CookieService::ParseByetrackContext(const nsACString& aContextJSON) {
+CookieService::ParseByetrackTokens(const nsACString& aJSON) {
   // Early return if JSON hasn't changed
-  if (mCachedByetrackContext.originalJSON.Equals(aContextJSON)) {
+  if (mCachedByetrackContext.originalJSON.Equals(aJSON)) {
     printf_stderr("BYETRACK: Context JSON hasn't changed, skipping parse\n");
     return NS_OK;
   }
 
   // Reset the cached context
-  mCachedByetrackContext.inAppCookies.Clear();
+  //mCachedByetrackContext.inAppCookiesHeader.Clear();
   mCachedByetrackContext.tokens.Clear();
-  mCachedByetrackContext.isValid = false;
-  mCachedByetrackContext.originalJSON = aContextJSON;
+  mCachedByetrackContext.originalJSON = aJSON;
 
   // Get JS context for parsing
   AutoJSAPI jsapi;
@@ -1996,45 +1995,13 @@ CookieService::ParseByetrackContext(const nsACString& aContextJSON) {
 
   // Parse JSON
   JS::Rooted<JS::Value> jsonValue(cx);
-  if (!JS_ParseJSON(cx, NS_ConvertUTF8toUTF16(aContextJSON).BeginReading(),
-                    aContextJSON.Length(), &jsonValue) ||
+  if (!JS_ParseJSON(cx, NS_ConvertUTF8toUTF16(aJSON).BeginReading(),
+                    aJSON.Length(), &jsonValue) ||
       !jsonValue.isObject()) {
     return NS_ERROR_INVALID_ARG;
   }
 
   JS::Rooted<JSObject*> jsonObj(cx, &jsonValue.toObject());
-
-  // Parse inAppCookies object
-  JS::Rooted<JS::Value> inAppCookiesValue(cx);
-  if (JS_GetProperty(cx, jsonObj, "inAppCookies", &inAppCookiesValue) &&
-      inAppCookiesValue.isObject()) {
-    JS::Rooted<JSObject*> inAppCookiesObj(cx, &inAppCookiesValue.toObject());
-    JS::Rooted<JS::IdVector> inAppCookieIds(cx, JS::IdVector(cx));
-
-    if (JS_Enumerate(cx, inAppCookiesObj, &inAppCookieIds)) {
-      for (size_t i = 0; i < inAppCookieIds.length(); i++) {
-        JS::Rooted<JS::Value> key(cx);
-        if (JS_IdToValue(cx, inAppCookieIds[i], &key) && key.isString()) {
-          JSString* keyStr = key.toString();
-          JS::Rooted<JS::Value> value(cx);
-          if (JS_GetPropertyById(cx, inAppCookiesObj, inAppCookieIds[i], &value) &&
-              value.isString()) {
-            JSString* valueStr = value.toString();
-
-            // Convert to C++ strings
-            ByetrackCookiePair cookiePair;
-            nsAutoJSString keyAutoStr;
-            nsAutoJSString valueAutoStr;
-            if (keyAutoStr.init(cx, keyStr) && valueAutoStr.init(cx, valueStr)) {
-              cookiePair.name = NS_ConvertUTF16toUTF8(keyAutoStr);
-              cookiePair.value = NS_ConvertUTF16toUTF8(valueAutoStr);
-              mCachedByetrackContext.inAppCookies.AppendElement(cookiePair);
-            }
-          }
-        }
-      }
-    }
-  }
 
   // Parse wildcardTokens array
   JS::Rooted<JS::Value> wildcardTokensValue(cx);
@@ -2126,7 +2093,6 @@ CookieService::ParseByetrackContext(const nsACString& aContextJSON) {
     }
   }
 
-  mCachedByetrackContext.isValid = true;
   return NS_OK;
 }
 

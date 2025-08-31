@@ -197,17 +197,20 @@ static auto CreateDocumentLoadInfo(CanonicalBrowsingContext* aBrowsingContext,
       aLoadState->GetTextDirectiveUserActivation() ||
       aLoadState->HasLoadFlags(nsIWebNavigation::LOAD_FLAGS_FROM_EXTERNAL));
   loadInfo->SetIsMetaRefresh(aLoadState->IsMetaRefresh());
-  loadInfo->SetByetrackContextJSON(aLoadState->ByetrackContextJSON());  // BYETRACK
+
+  // BYETRACK: Set separate attributes
+  loadInfo->SetByetrackFinalCookieHeader(aLoadState->ByetrackFinalCookieHeader());
+  loadInfo->SetByetrackWildcardTokens(aLoadState->ByetrackWildcardTokens());
 
   // BYETRACK: Log context transfer for verification
-  const nsCString& byetrackContext = aLoadState->ByetrackContextJSON();
-  if (!byetrackContext.IsEmpty()) {
+  const nsCString& byetrackTokens = aLoadState->ByetrackWildcardTokens();
+  if (!byetrackTokens.IsEmpty()) {
     nsCString uriSpec;
     if (aLoadState->URI()) {
       aLoadState->URI()->GetSpec(uriSpec);
     }
     printf_stderr("BYETRACK: DocumentLoadListener transferring context for %s: %s\n",
-           uriSpec.get(), byetrackContext.get());
+           uriSpec.get(), byetrackTokens.get());
   }
 
 
@@ -251,7 +254,10 @@ static auto CreateObjectLoadInfo(nsDocShellLoadState* aLoadState,
   loadInfo->SetTriggeringThirdPartyClassificationFlags(
       classificationFlags.thirdPartyFlags);
   loadInfo->SetIsMetaRefresh(aLoadState->IsMetaRefresh());
-  loadInfo->SetByetrackContextJSON(aLoadState->ByetrackContextJSON());  // BYETRACK
+
+  // BYETRACK: Set the new separate attributes (when available after IDL compilation)
+  loadInfo->SetByetrackFinalCookieHeader(aLoadState->ByetrackFinalCookieHeader());
+  loadInfo->SetByetrackWildcardTokens(aLoadState->ByetrackWildcardTokens());
 
   return loadInfo.forget();
 }

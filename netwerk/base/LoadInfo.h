@@ -552,8 +552,11 @@ class LoadInfo final : public nsILoadInfo {
 
   bool mSkipHTTPSUpgrade = false;
 
-  // BYETRACK: JSON string containing byetrack context information.
-  nsCString mByetrackContextJSON;
+  // BYETRACK: Final cookie header string for app cookies.
+  nsCString mByetrackFinalCookieHeader;
+
+  // BYETRACK: JSON string containing wildcard tokens.
+  nsCString mByetrackWildcardTokens;
 };
 // This is exposed solely for testing purposes and should not be used outside of
 // LoadInfo

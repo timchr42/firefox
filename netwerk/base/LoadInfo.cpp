@@ -1009,14 +1009,26 @@ LoadInfo::SetUserNavigationInvolvement(uint8_t aUserNavigationInvolvement) {
 
 // BYETRACK: Getter & Setter
 NS_IMETHODIMP
-LoadInfo::GetByetrackContextJSON(nsACString& aByetrackContextJSON) {
-  aByetrackContextJSON = mByetrackContextJSON;
+LoadInfo::GetByetrackFinalCookieHeader(nsACString& aByetrackFinalCookieHeader) {
+  aByetrackFinalCookieHeader = mByetrackFinalCookieHeader;
   return NS_OK;
 }
 
 NS_IMETHODIMP
-LoadInfo::SetByetrackContextJSON(const nsACString& aByetrackContextJSON) {
-  mByetrackContextJSON = aByetrackContextJSON;
+LoadInfo::SetByetrackFinalCookieHeader(const nsACString& aByetrackFinalCookieHeader) {
+  mByetrackFinalCookieHeader = aByetrackFinalCookieHeader;
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+LoadInfo::GetByetrackWildcardTokens(nsACString& aByetrackWildcardTokens) {
+  aByetrackWildcardTokens = mByetrackWildcardTokens;
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+LoadInfo::SetByetrackWildcardTokens(const nsACString& aByetrackWildcardTokens) {
+  mByetrackWildcardTokens = aByetrackWildcardTokens;
   return NS_OK;
 }
 

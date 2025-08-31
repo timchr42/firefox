@@ -551,12 +551,22 @@ TRRLoadInfo::GetFetchDestination(nsACString& aDestination) {
 
 // BYETRACK: Getter & Setter
 NS_IMETHODIMP
-TRRLoadInfo::GetByetrackContextJSON(nsACString& aByetrackContextJSON) {
+TRRLoadInfo::GetByetrackFinalCookieHeader(nsACString& aByetrackFinalCookieHeader) {
   return NS_ERROR_NOT_IMPLEMENTED;
 }
 
 NS_IMETHODIMP
-TRRLoadInfo::SetByetrackContextJSON(const nsACString& aByetrackContextJSON) {
+TRRLoadInfo::SetByetrackFinalCookieHeader(const nsACString& aByetrackFinalCookieHeader) {
+  return NS_ERROR_NOT_IMPLEMENTED;
+}
+
+NS_IMETHODIMP
+TRRLoadInfo::GetByetrackWildcardTokens(nsACString& aByetrackWildcardTokens) {
+  return NS_ERROR_NOT_IMPLEMENTED;
+}
+
+NS_IMETHODIMP
+TRRLoadInfo::SetByetrackWildcardTokens(const nsACString& aByetrackWildcardTokens) {
   return NS_ERROR_NOT_IMPLEMENTED;
 }
 

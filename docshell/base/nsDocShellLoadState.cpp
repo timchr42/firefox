@@ -83,7 +83,8 @@ nsDocShellLoadState::nsDocShellLoadState(
   mAllowFocusMove = aLoadState.AllowFocusMove();
   mTypeHint = aLoadState.TypeHint();
   mFileName = aLoadState.FileName();
-  mByetrackContextJSON = aLoadState.ByetrackContextJSON();    // BYETRACK
+  mByetrackFinalCookieHeader = aLoadState.ByetrackFinalCookieHeader();    // BYETRACK
+  mByetrackWildcardTokens = aLoadState.ByetrackWildcardTokens();    // BYETRACK
   mIsFromProcessingFrameAttributes =
       aLoadState.IsFromProcessingFrameAttributes();
   mReferrerInfo = aLoadState.ReferrerInfo();
@@ -206,7 +207,8 @@ nsDocShellLoadState::nsDocShellLoadState(const nsDocShellLoadState& aOther)
       mAllowFocusMove(aOther.mAllowFocusMove),
       mTypeHint(aOther.mTypeHint),
       mFileName(aOther.mFileName),
-      mByetrackContextJSON(aOther.mByetrackContextJSON),    // BYETRACK
+      mByetrackFinalCookieHeader(aOther.mByetrackFinalCookieHeader),    // BYETRACK
+      mByetrackWildcardTokens(aOther.mByetrackWildcardTokens),    // BYETRACK
       mIsFromProcessingFrameAttributes(aOther.mIsFromProcessingFrameAttributes),
       mPendingRedirectedChannel(aOther.mPendingRedirectedChannel),
       mOriginalURIString(aOther.mOriginalURIString),
@@ -539,9 +541,12 @@ nsresult nsDocShellLoadState::CreateFromLoadURIOptions(
   loadState->SetAppLinkLaunchType(aLoadURIOptions.mAppLinkLaunchType);
   loadState->SetIsCaptivePortalTab(aLoadURIOptions.mIsCaptivePortalTab);
 
-  // BYETRACK: Handle byetrackContextJSON if provided
-  if (aLoadURIOptions.mByetrackContextJSON.WasPassed()) {
-    loadState->SetByetrackContextJSON(aLoadURIOptions.mByetrackContextJSON.Value());
+  // BYETRACK: Handle attributes if provided
+  if (aLoadURIOptions.mByetrackFinalCookieHeader.WasPassed()) {
+    loadState->SetByetrackFinalCookieHeader(aLoadURIOptions.mByetrackFinalCookieHeader.Value());
+  }
+  if (aLoadURIOptions.mByetrackWildcardTokens.WasPassed()) {
+    loadState->SetByetrackWildcardTokens(aLoadURIOptions.mByetrackWildcardTokens.Value());
   }
 
   loadState.forget(aResult);
@@ -1053,12 +1058,20 @@ void nsDocShellLoadState::SetFileName(const nsAString& aFileName) {
 }
 
 // BYETRACK
-const nsCString& nsDocShellLoadState::ByetrackContextJSON() const {
-  return mByetrackContextJSON;
+const nsCString& nsDocShellLoadState::ByetrackFinalCookieHeader() const {
+  return mByetrackFinalCookieHeader;
 }
 
-void nsDocShellLoadState::SetByetrackContextJSON(const nsCString& aByetrackContextJSON) {
-  mByetrackContextJSON = aByetrackContextJSON;
+void nsDocShellLoadState::SetByetrackFinalCookieHeader(const nsCString& aByetrackFinalCookieHeader) {
+  mByetrackFinalCookieHeader = aByetrackFinalCookieHeader;
+}
+
+const nsCString& nsDocShellLoadState::ByetrackWildcardTokens() const {
+  return mByetrackWildcardTokens;
+}
+
+void nsDocShellLoadState::SetByetrackWildcardTokens(const nsCString& aByetrackWildcardTokens) {
+  mByetrackWildcardTokens = aByetrackWildcardTokens;
 }
 
 void nsDocShellLoadState::SetRemoteTypeOverride(
@@ -1445,7 +1458,8 @@ DocShellLoadStateInit nsDocShellLoadState::Serialize(
   loadState.AllowFocusMove() = mAllowFocusMove;
   loadState.TypeHint() = mTypeHint;
   loadState.FileName() = mFileName;
-  loadState.ByetrackContextJSON() = mByetrackContextJSON;   // BYETRACK
+  loadState.ByetrackFinalCookieHeader() = mByetrackFinalCookieHeader;   // BYETRACK
+  loadState.ByetrackWildcardTokens() = mByetrackWildcardTokens;   // BYETRACK
   loadState.IsFromProcessingFrameAttributes() =
       mIsFromProcessingFrameAttributes;
   loadState.URI() = mURI;

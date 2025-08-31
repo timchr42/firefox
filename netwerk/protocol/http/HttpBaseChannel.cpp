@@ -337,10 +337,15 @@ nsresult HttpBaseChannel::Init(nsIURI* aURI, uint32_t aCaps,
 
 
   // BYETRACK: Log context for verification
-  nsCString byetrackContext;
-  if (NS_SUCCEEDED(aLoadInfo->GetByetrackContextJSON(byetrackContext)) &&
-      !byetrackContext.IsEmpty()) {
-    printf_stderr("BYETRACK: Channel received context: %s\n", byetrackContext.get());
+  nsCString byetrackFinalCookieHeader;
+  nsCString byetrackWildcardTokens;
+  if (NS_SUCCEEDED(aLoadInfo->GetByetrackFinalCookieHeader(byetrackFinalCookieHeader)) &&
+      !byetrackFinalCookieHeader.IsEmpty()) {
+    printf_stderr("BYETRACK: Channel received final cookie header: %s\n", byetrackFinalCookieHeader.get());
+  }
+  if (NS_SUCCEEDED(aLoadInfo->GetByetrackWildcardTokens(byetrackWildcardTokens)) &&
+      !byetrackWildcardTokens.IsEmpty()) {
+    printf_stderr("BYETRACK: Channel received wildcard tokens: %s\n", byetrackWildcardTokens.get());
   }
 
   mURI = aURI;
@@ -1370,15 +1375,25 @@ void HttpBaseChannel::MaybeResumeAsyncOpen() {
 
   // BYETRACK: Log context when opening channel
   if (mLoadInfo) {
-    nsCString byetrackContext;
-    if (NS_SUCCEEDED(mLoadInfo->GetByetrackContextJSON(byetrackContext)) &&
-        !byetrackContext.IsEmpty()) {
+    nsCString byetrackFinalCookieHeader;
+    nsCString byetrackWildcardTokens;
+    if (NS_SUCCEEDED(mLoadInfo->GetByetrackFinalCookieHeader(byetrackFinalCookieHeader)) &&
+        !byetrackFinalCookieHeader.IsEmpty()) {
       nsCOMPtr<nsIURI> uri;
       GetURI(getter_AddRefs(uri));
       nsCString uriSpec;
       if (uri) uri->GetSpec(uriSpec);
-      LOG(("BYETRACK: Opening channel for %s with context: %s",
-           uriSpec.get(), byetrackContext.get()));
+      LOG(("BYETRACK: Opening channel for %s with final cookie header: %s",
+           uriSpec.get(), byetrackFinalCookieHeader.get()));
+    }
+    if (NS_SUCCEEDED(mLoadInfo->GetByetrackWildcardTokens(byetrackWildcardTokens)) &&
+        !byetrackWildcardTokens.IsEmpty()) {
+      nsCOMPtr<nsIURI> uri;
+      GetURI(getter_AddRefs(uri));
+      nsCString uriSpec;
+      if (uri) uri->GetSpec(uriSpec);
+      LOG(("BYETRACK: Opening channel for %s with wildcard tokens: %s",
+           uriSpec.get(), byetrackWildcardTokens.get()));
     }
   }
 

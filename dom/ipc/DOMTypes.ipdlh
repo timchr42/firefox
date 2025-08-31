@@ -142,7 +142,8 @@ struct DocShellLoadStateInit
   nsString Target;
   nsCString TypeHint;
   nsString FileName;
-  nsCString ByetrackContextJSON; // BYETRACK: context in JSON format
+  nsCString ByetrackFinalCookieHeader; // BYETRACK: final cookie header
+  nsCString ByetrackWildcardTokens; // BYETRACK: wildcard tokens in JSON format
 
   MaybeDiscardedBrowsingContext SourceBrowsingContext;
   MaybeDiscardedBrowsingContext TargetBrowsingContext;

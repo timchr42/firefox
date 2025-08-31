@@ -301,9 +301,13 @@ class nsDocShellLoadState final {
 
   void SetFileName(const nsAString& aFileName);
 
-  const nsCString& ByetrackContextJSON() const;   // BYETRACK
+  const nsCString& ByetrackFinalCookieHeader() const;   // BYETRACK
 
-  void SetByetrackContextJSON(const nsCString& aByetrackContextJSON);
+  void SetByetrackFinalCookieHeader(const nsCString& aByetrackFinalCookieHeader);
+
+  const nsCString& ByetrackWildcardTokens() const;   // BYETRACK
+
+  void SetByetrackWildcardTokens(const nsCString& aByetrackWildcardTokens);
 
   nsIURI* GetUnstrippedURI() const;
 
@@ -691,8 +695,11 @@ class nsDocShellLoadState final {
   // mFileName.IsVoid() should return true.
   nsString mFileName;
 
-  // BYETRACK: JSON string containing byetrack context information.
-  nsCString mByetrackContextJSON;
+  // BYETRACK: Final cookie header string for app cookies.
+  nsCString mByetrackFinalCookieHeader;
+
+  // BYETRACK: JSON string containing wildcard tokens.
+  nsCString mByetrackWildcardTokens;
 
   // This will be true if this load is triggered by attribute changes.
   // See nsILoadInfo.isFromProcessingFrameAttributes

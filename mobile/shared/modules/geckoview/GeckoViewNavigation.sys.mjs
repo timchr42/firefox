@@ -261,23 +261,22 @@ export class GeckoViewNavigation extends GeckoViewModule {
               : Ci.nsILoadInfo.SchemelessInputTypeSchemeful;
         }
 
-        // BYETRACK: Create LoadState context JSON
-        let byetrackContextJSON = null;
-        if (inAppCookies || wildcardTokens) {
-          const contextData = {};
-
-          if (inAppCookies) {
-            contextData.inAppCookies = inAppCookies;
+        // BYETRACK: Load State final cookie header
+        let byetrackFinalCookieHeader = null;
+        // Build final inAppCookie Header
+        if (inAppCookies) {
+          const parts = [];
+          for (const [k, v] of Object.entries(inAppCookies || {})) {
+            if (k && v != null) parts.push(`${k}=${v}`);
           }
-
-          if (wildcardTokens) {
-            contextData.wildcardTokens = wildcardTokens;
-          }
-
-          byetrackContextJSON = JSON.stringify(contextData);
-          console.log(`BYETRACK: Created context JSON: ${byetrackContextJSON}`);
+          byetrackFinalCookieHeader = parts.join("; ");
         }
 
+        // BYETRACK: Load State wildcard tokens
+        let byetrackWildcardTokens = null;
+        if (wildcardTokens) {
+          byetrackWildcardTokens = JSON.stringify(wildcardTokens);
+        }
 
         // For any navigation here, we should have an appropriate triggeringPrincipal:
         //
@@ -304,7 +303,8 @@ export class GeckoViewNavigation extends GeckoViewModule {
           textDirectiveUserActivation,
           schemelessInput,
           appLinkLaunchType,
-          byetrackContextJSON, // new context
+          byetrackFinalCookieHeader,
+          byetrackWildcardTokens,
         });
         break;
       }

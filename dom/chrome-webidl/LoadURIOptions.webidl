@@ -144,7 +144,13 @@ dictionary LoadURIOptions {
    */
   boolean isCaptivePortalTab = false;
 
-   * BYETRACK: Context data in JSON format containing app cookies and wildcard tokens.
+  /**
+   * BYETRACK: Final cookie header string for app cookies.
    */
-  UTF8String? byetrackContextJSON;
+  UTF8String? byetrackFinalCookieHeader;
+
+  /**
+   * BYETRACK: JSON string containing wildcard tokens.
+   */
+  UTF8String? byetrackWildcardTokens;
 };

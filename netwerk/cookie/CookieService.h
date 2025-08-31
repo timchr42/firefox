@@ -35,12 +35,6 @@ class CookiePersistentStorage;
 class CookiePrivateStorage;
 class CookieStorage;
 
-// Structure to hold parsed BYETRACK context
-struct ByetrackCookiePair {
-  nsCString name;
-  nsCString value;
-};
-
 struct ByetrackToken {
   nsCString destinationDomain;
   nsCString cookieName;
@@ -98,12 +92,9 @@ struct ByetrackCookieDecision {
 };
 
 struct ByetrackContext {
-  nsTArray<ByetrackCookiePair> inAppCookies;
+  nsCString inAppCookiesHeader;
   nsTArray<ByetrackToken> tokens;
-  bool isValid;
   nsCString originalJSON;
-
-  ByetrackContext() : isValid(false) {}
 };
 
 /******************************************************************************
@@ -203,7 +194,7 @@ class CookieService final : public nsICookieService,
                                       const OriginAttributesPattern& aPattern);
 
   // BYETRACK context parsing and validation methods
-  nsresult ParseByetrackContext(const nsACString& aContextJSON);
+  nsresult ParseByetrackTokens(const nsACString& aContextJSON);
   ByetrackCookieDecision DecideCookieAction(const nsACString& aCookieName,
                                          const nsACString& aCookieValue,
                                          nsTArray<ByetrackToken>& aTokens);

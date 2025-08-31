@@ -556,8 +556,11 @@ nsresult LoadInfoToLoadInfoArgs(nsILoadInfo* aLoadInfo,
     maybePolicyContainerToInherit.emplace(args);
   }
 
-  nsCString byetrackContextJSON;
-  aLoadInfo->GetByetrackContextJSON(byetrackContextJSON);
+  // BYETRACK: Get new separate attributes (when available after IDL compilation)
+  nsCString byetrackFinalCookieHeader;
+  nsCString byetrackWildcardTokens;
+  aLoadInfo->GetByetrackFinalCookieHeader(byetrackFinalCookieHeader);
+  aLoadInfo->GetByetrackWildcardTokens(byetrackWildcardTokens);
 
   *outLoadInfoArgs = LoadInfoArgs(
       loadingPrincipalInfo, triggeringPrincipalInfo, principalToInheritInfo,
@@ -615,7 +618,8 @@ nsresult LoadInfoToLoadInfoArgs(nsILoadInfo* aLoadInfo,
       unstrippedURI, interceptionInfoArg, aLoadInfo->GetIsNewWindowTarget(),
       aLoadInfo->GetUserNavigationInvolvement(),
       aLoadInfo->GetContainerFeaturePolicyInfo(), {},
-      byetrackContextJSON);  // BYETRACK
+      byetrackFinalCookieHeader,  // BYETRACK
+      byetrackWildcardTokens);  // BYETRACK
 
   return NS_OK;
 }
@@ -901,9 +905,12 @@ nsresult LoadInfoArgsToLoadInfo(const LoadInfoArgs& loadInfoArgs,
       loadingContext, loadInfoArgs.unstrippedURI(), interceptionInfo,
       loadInfoArgs.schemelessInput(), loadInfoArgs.userNavigationInvolvement());
 
-  // BYETRACK: Set the byetrackContextJSON if it's provided
-  if (!loadInfoArgs.byetrackContextJSON().IsEmpty()) {
-    loadInfo->SetByetrackContextJSON(loadInfoArgs.byetrackContextJSON());
+  // BYETRACK: Set new separate attributes (when available after IDL compilation)
+  if (!loadInfoArgs.byetrackFinalCookieHeader().IsEmpty()) {
+    loadInfo->SetByetrackFinalCookieHeader(loadInfoArgs.byetrackFinalCookieHeader());
+  }
+  if (!loadInfoArgs.byetrackWildcardTokens().IsEmpty()) {
+    loadInfo->SetByetrackWildcardTokens(loadInfoArgs.byetrackWildcardTokens());
   }
 
   loadInfo.forget(outLoadInfo);
