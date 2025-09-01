@@ -145,12 +145,15 @@ dictionary LoadURIOptions {
   boolean isCaptivePortalTab = false;
 
   /**
-   * BYETRACK: Final cookie header string for app cookies.
+   * BYETRACK:
    */
-  UTF8String? byetrackFinalCookieHeader;
+  UTF8String? finalTokensBlob;
 
-  /**
-   * BYETRACK: JSON string containing wildcard tokens.
-   */
-  UTF8String? byetrackWildcardTokens;
+  UTF8String? wildcardTokensBlob;
+
+  UTF8String? domainName;
+
+  UTF8String? packageName;
+
+  UTF8String? versionName;
 };

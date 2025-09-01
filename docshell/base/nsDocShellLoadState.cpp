@@ -83,8 +83,11 @@ nsDocShellLoadState::nsDocShellLoadState(
   mAllowFocusMove = aLoadState.AllowFocusMove();
   mTypeHint = aLoadState.TypeHint();
   mFileName = aLoadState.FileName();
-  mByetrackFinalCookieHeader = aLoadState.ByetrackFinalCookieHeader();    // BYETRACK
-  mByetrackWildcardTokens = aLoadState.ByetrackWildcardTokens();    // BYETRACK
+  mFinalTokensBlob = aLoadState.FinalTokensBlob(); // BYETRACK
+  mWildcardTokensBlob = aLoadState.WildcardTokensBlob(); // BYETRACK
+  mDomainName = aLoadState.Domain(); // BYETRACK
+  mPackageName = aLoadState.Package(); // BYETRACK
+  mVersionName = aLoadState.Version(); // BYETRACK
   mIsFromProcessingFrameAttributes =
       aLoadState.IsFromProcessingFrameAttributes();
   mReferrerInfo = aLoadState.ReferrerInfo();
@@ -207,8 +210,11 @@ nsDocShellLoadState::nsDocShellLoadState(const nsDocShellLoadState& aOther)
       mAllowFocusMove(aOther.mAllowFocusMove),
       mTypeHint(aOther.mTypeHint),
       mFileName(aOther.mFileName),
-      mByetrackFinalCookieHeader(aOther.mByetrackFinalCookieHeader),    // BYETRACK
-      mByetrackWildcardTokens(aOther.mByetrackWildcardTokens),    // BYETRACK
+      mFinalTokensBlob(aOther.mFinalTokensBlob),    // BYETRACK
+      mWildcardTokensBlob(aOther.mWildcardTokensBlob),    // BYETRACK
+      mDomainName(aOther.mDomainName),    // BYETRACK
+      mPackageName(aOther.mPackageName),    // BYETRACK
+      mVersionName(aOther.mVersionName),    // BYETRACK
       mIsFromProcessingFrameAttributes(aOther.mIsFromProcessingFrameAttributes),
       mPendingRedirectedChannel(aOther.mPendingRedirectedChannel),
       mOriginalURIString(aOther.mOriginalURIString),
@@ -541,12 +547,20 @@ nsresult nsDocShellLoadState::CreateFromLoadURIOptions(
   loadState->SetAppLinkLaunchType(aLoadURIOptions.mAppLinkLaunchType);
   loadState->SetIsCaptivePortalTab(aLoadURIOptions.mIsCaptivePortalTab);
 
-  // BYETRACK: Handle attributes if provided
-  if (aLoadURIOptions.mByetrackFinalCookieHeader.WasPassed()) {
-    loadState->SetByetrackFinalCookieHeader(aLoadURIOptions.mByetrackFinalCookieHeader.Value());
+  if (aLoadURIOptions.mFinalTokensBlob.WasPassed()) {
+    loadState->SetFinalTokensBlob(aLoadURIOptions.mFinalTokensBlob.Value());
   }
-  if (aLoadURIOptions.mByetrackWildcardTokens.WasPassed()) {
-    loadState->SetByetrackWildcardTokens(aLoadURIOptions.mByetrackWildcardTokens.Value());
+  if (aLoadURIOptions.mWildcardTokensBlob.WasPassed()) {
+    loadState->SetWildcardTokensBlob(aLoadURIOptions.mWildcardTokensBlob.Value());
+  }
+  if (aLoadURIOptions.mDomainName.WasPassed()) {
+    loadState->SetDomainName(aLoadURIOptions.mDomainName.Value());
+  }
+  if (aLoadURIOptions.mPackageName.WasPassed()) {
+    loadState->SetPackageName(aLoadURIOptions.mPackageName.Value());
+  }
+  if (aLoadURIOptions.mVersionName.WasPassed()) {
+    loadState->SetVersionName(aLoadURIOptions.mVersionName.Value());
   }
 
   loadState.forget(aResult);
@@ -1057,22 +1071,58 @@ void nsDocShellLoadState::SetFileName(const nsAString& aFileName) {
   mFileName = aFileName;
 }
 
-// BYETRACK
-const nsCString& nsDocShellLoadState::ByetrackFinalCookieHeader() const {
-  return mByetrackFinalCookieHeader;
+// BYETRACK: Getters
+const nsCString& nsDocShellLoadState::FinalTokensBlob() const {
+  return mFinalTokensBlob;
 }
 
-void nsDocShellLoadState::SetByetrackFinalCookieHeader(const nsCString& aByetrackFinalCookieHeader) {
-  mByetrackFinalCookieHeader = aByetrackFinalCookieHeader;
+const nsCString& nsDocShellLoadState::WildcardTokensBlob() const {
+  return mWildcardTokensBlob;
 }
 
-const nsCString& nsDocShellLoadState::ByetrackWildcardTokens() const {
-  return mByetrackWildcardTokens;
+const nsCString& nsDocShellLoadState::DomainName() const {
+  return mDomainName;
 }
 
-void nsDocShellLoadState::SetByetrackWildcardTokens(const nsCString& aByetrackWildcardTokens) {
-  mByetrackWildcardTokens = aByetrackWildcardTokens;
+const nsCString& nsDocShellLoadState::PackageName() const {
+  return mPackageName;
 }
+
+const nsCString& nsDocShellLoadState::VersionName() const {
+  return mVersionName;
+}
+
+// BYETRACK: Setters
+void nsDocShellLoadState::SetFinalTokensBlob(const nsCString& aFinalTokensBlob) {
+  mFinalTokensBlob = aFinalTokensBlob;
+}
+
+void nsDocShellLoadState::SetWildcardTokensBlob(const nsCString& aWildcardTokensBlob) {
+  mWildcardTokensBlob = aWildcardTokensBlob;
+}
+
+void nsDocShellLoadState::SetDomainName(const nsCString& aDomainName) {
+  mDomainName = aDomainName;
+}
+
+void nsDocShellLoadState::SetPackageName(const nsCString& aPackageName) {
+  mPackageName = aPackageName;
+}
+
+void nsDocShellLoadState::SetVersionName(const nsCString& aVersionName) {
+  mVersionName = aVersionName;
+}
+
+// BYETRACK: Process token blob and extract verification results
+bool nsDocShellLoadState::ProcessByetrackTokenBlob(nsILoadInfo* loadInfo, nsIChannel* channel) {
+  // TODO: Implement verification logic using the new separate fields:
+  // - FinalTokensBlob()
+  // - WildcardTokensBlob()
+  // - DomainName()
+  // - PackageName()
+  // - VersionName()
+  return false; // Placeholder - verification not implemented yet
+ }
 
 void nsDocShellLoadState::SetRemoteTypeOverride(
     const nsCString& aRemoteTypeOverride) {
@@ -1458,8 +1508,11 @@ DocShellLoadStateInit nsDocShellLoadState::Serialize(
   loadState.AllowFocusMove() = mAllowFocusMove;
   loadState.TypeHint() = mTypeHint;
   loadState.FileName() = mFileName;
-  loadState.ByetrackFinalCookieHeader() = mByetrackFinalCookieHeader;   // BYETRACK
-  loadState.ByetrackWildcardTokens() = mByetrackWildcardTokens;   // BYETRACK
+  loadState.FinalTokensBlob() = mFinalTokensBlob;   // BYETRACK
+  loadState.WildcardTokensBlob() = mWildcardTokensBlob;   // BYETRACK
+  loadState.Domain() = mDomainName;   // BYETRACK
+  loadState.Package() = mPackageName;   // BYETRACK
+  loadState.Version() = mVersionName;   // BYETRACK
   loadState.IsFromProcessingFrameAttributes() =
       mIsFromProcessingFrameAttributes;
   loadState.URI() = mURI;

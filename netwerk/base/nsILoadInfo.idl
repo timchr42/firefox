@@ -1720,7 +1720,7 @@ interface nsILoadInfo : nsISupports
   attribute ACString byetrackFinalCookieHeader;
 
   /**
-   * BYETRACK: JSON string containing wildcard tokens.
+   * BYETRACK: Compiled JSON string containing wildcard tokens (allows directly loading Tokens)
    */
   attribute ACString byetrackWildcardTokens;
 

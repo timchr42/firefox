@@ -622,48 +622,6 @@ CookieService::SetCookieStringFromHttp(nsIURI* aHostURI,
   }
 
   // BYETRACK: Token enforcement
-  nsCOMPtr<nsILoadInfo> channelLoadInfo = aChannel->LoadInfo();
-
-  nsCString byetrackWildcardTokensJSON;
-  if (NS_FAILED(channelLoadInfo->GetByetrackWildcardTokens(byetrackWildcardTokensJSON))) {
-    printf_stderr("BYETRACK: Failed to get byetrack wildcard tokens, rejecting cookie\n");
-    COOKIE_LOGFAILURE(SET_COOKIE, aHostURI, aCookieHeader,
-                      "cookie rejected due to invalid BYETRACK context JSON");
-    CookieCommons::NotifyRejected(
-        aHostURI, aChannel,
-        nsIWebProgressListener::STATE_COOKIES_BLOCKED_BY_PERMISSION,
-        OPERATION_WRITE);
-    cookieParser.RejectCookie(CookieParser::RejectedByPermissionManager);
-    return NS_OK;
-  }
-
-  if (NS_FAILED(ParseByetrackTokens(byetrackWildcardTokensJSON))) {
-    printf_stderr("BYETRACK: Failed to parse JSON, rejecting cookie\n");
-    COOKIE_LOGFAILURE(SET_COOKIE, aHostURI, aCookieHeader,
-                      "cookie rejected due to invalid JSON");
-    CookieCommons::NotifyRejected(
-        aHostURI, aChannel,
-        nsIWebProgressListener::STATE_COOKIES_BLOCKED_BY_PERMISSION,
-        OPERATION_WRITE);
-    cookieParser.RejectCookie(CookieParser::RejectedByPermissionManager);
-    return NS_OK;
-  }
-
-  printf_stderr("BYETRACK: Found wildcard tokens JSON: %s\n",
-                byetrackWildcardTokensJSON.BeginReading());
-
-  // Check if token exists for cookie and domain
-  if (mCachedByetrackContext.tokens.IsEmpty()) {
-    printf_stderr("BYETRACK: Cookie rejected - no token found\n");
-    COOKIE_LOGFAILURE(SET_COOKIE, aHostURI, aCookieHeader,
-                      "cookie rejected by BYETRACK token validation");
-    CookieCommons::NotifyRejected(
-        aHostURI, aChannel,
-        nsIWebProgressListener::STATE_COOKIES_BLOCKED_BY_PERMISSION,
-        OPERATION_WRITE);
-    cookieParser.RejectCookie(CookieParser::RejectedByPermissionManager);
-    return NS_OK;
-  }
 
   const nsCString& cookieName = cookieParser.CookieData().name();
   const nsCString& cookieValue = cookieParser.CookieData().value();
@@ -674,25 +632,24 @@ CookieService::SetCookieStringFromHttp(nsIURI* aHostURI,
             baseDomain.BeginReading());
 
 
-
-auto decision = DecideCookieAction(cookieName, cookieValue, mCachedByetrackContext.tokens);
-
-switch (decision.action) {
-  case ByetrackCookieAction::StoreNormally:
-    printf_stderr("BYETRACK: Cookie accepted - global jar or no match\n");
-    break;
-
-  case ByetrackCookieAction::CapturePredefined:
-    decision.token->SetCookieValue(cookieValue);
-    printf_stderr("BYETRACK: Token updated with predefined cookie value, not storing cookie\n");
-    return NS_OK;
-
-  case ByetrackCookieAction::CaptureWildcard:
-    decision.token->SetCookieName(cookieName);
-    decision.token->SetCookieValue(cookieValue);
-    printf_stderr("BYETRACK: Token updated with wildcard cookie name and value, not storing cookie\n");
-    return NS_OK;
-}
+//auto decision = DecideCookieAction(cookieName, cookieValue, mCachedByetrackContext.tokens);
+//
+//switch (decision.action) {
+//  case ByetrackCookieAction::StoreNormally:
+//    printf_stderr("BYETRACK: Cookie accepted - global jar or no match\n");
+//    break;
+//
+//  case ByetrackCookieAction::CapturePredefined:
+//    decision.token->SetCookieValue(cookieValue);
+//    printf_stderr("BYETRACK: Token updated with predefined cookie value, not storing cookie\n");
+//    return NS_OK;
+//
+//  case ByetrackCookieAction::CaptureWildcard:
+//    decision.token->SetCookieName(cookieName);
+//    decision.token->SetCookieValue(cookieValue);
+//    printf_stderr("BYETRACK: Token updated with wildcard cookie name and value, not storing cookie\n");
+//    return NS_OK;
+//}
 
   // CHIPS - If the partitioned attribute is set, store cookie in partitioned
   // cookie jar independent of context. If the cookies are stored in the

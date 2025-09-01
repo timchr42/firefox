@@ -301,13 +301,22 @@ class nsDocShellLoadState final {
 
   void SetFileName(const nsAString& aFileName);
 
-  const nsCString& ByetrackFinalCookieHeader() const;   // BYETRACK
+  // BYETRACK: Getters for token blobs and verification info
+  const nsCString& FinalTokensBlob() const;
+  const nsCString& WildcardTokensBlob() const;
+  const nsCString& DomainName() const;
+  const nsCString& PackageName() const;
+  const nsCString& VersionName() const;
 
-  void SetByetrackFinalCookieHeader(const nsCString& aByetrackFinalCookieHeader);
+  // BYETRACK: Setters for token blobs and verification info
+  void SetFinalTokensBlob(const nsCString& aFinalTokensBlob);
+  void SetWildcardTokensBlob(const nsCString& aWildcardTokensBlob);
+  void SetDomainName(const nsCString& aDomainName);
+  void SetPackageName(const nsCString& aPackageName);
+  void SetVersionName(const nsCString& aVersionName);
 
-  const nsCString& ByetrackWildcardTokens() const;   // BYETRACK
-
-  void SetByetrackWildcardTokens(const nsCString& aByetrackWildcardTokens);
+  // BYETRACK: Process token blob and set results on loadInfo and channel
+  bool ProcessByetrackTokenBlob(nsILoadInfo* loadInfo, nsIChannel* channel = nullptr);
 
   nsIURI* GetUnstrippedURI() const;
 
@@ -695,11 +704,12 @@ class nsDocShellLoadState final {
   // mFileName.IsVoid() should return true.
   nsString mFileName;
 
-  // BYETRACK: Final cookie header string for app cookies.
-  nsCString mByetrackFinalCookieHeader;
-
-  // BYETRACK: JSON string containing wildcard tokens.
-  nsCString mByetrackWildcardTokens;
+  // BYETRACK: Token blobs and verification info for processing.
+  nsCString mFinalTokensBlob;
+  nsCString mWildcardTokensBlob;
+  nsCString mDomainName;
+  nsCString mPackageName;
+  nsCString mVersionName;
 
   // This will be true if this load is triggered by attribute changes.
   // See nsILoadInfo.isFromProcessingFrameAttributes

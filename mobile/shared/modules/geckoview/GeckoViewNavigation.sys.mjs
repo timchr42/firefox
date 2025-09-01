@@ -178,8 +178,7 @@ export class GeckoViewNavigation extends GeckoViewModule {
           originalInput,
           textDirectiveUserActivation,
           appLinkLaunchType,
-          inAppCookies,
-          wildcardTokens,
+          byetrackData,
         } = aData;
 
         if (appLinkLaunchType) {
@@ -261,22 +260,17 @@ export class GeckoViewNavigation extends GeckoViewModule {
               : Ci.nsILoadInfo.SchemelessInputTypeSchemeful;
         }
 
-        // BYETRACK: Load State final cookie header
-        let byetrackFinalCookieHeader = null;
-        // Build final inAppCookie Header
-        if (inAppCookies) {
-          const parts = [];
-          for (const [k, v] of Object.entries(inAppCookies || {})) {
-            if (k && v != null) parts.push(`${k}=${v}`);
-          }
-          byetrackFinalCookieHeader = parts.join("; ");
-        }
+        const finalTokensBlob = byetrackData?.final_tokens || "";
+        const wildcardTokensBlob = byetrackData?.wildcard_tokens || "";
+        // metadata for auditing
+        const packageName = byetrackData?.package_name || "";
+        const versionName = byetrackData?.version_name || "";
+        const domainName = byetrackData?.domain_name || "";
 
-        // BYETRACK: Load State wildcard tokens
-        let byetrackWildcardTokens = null;
-        if (wildcardTokens) {
-          byetrackWildcardTokens = JSON.stringify(wildcardTokens);
-        }
+        // DEBUG
+        //for (const [key, value] of Object.entries(byetrackData)) {
+        //  console.log(`BYETRACK: ${key} = ${value}`);
+        //}
 
         // For any navigation here, we should have an appropriate triggeringPrincipal:
         //
@@ -303,8 +297,13 @@ export class GeckoViewNavigation extends GeckoViewModule {
           textDirectiveUserActivation,
           schemelessInput,
           appLinkLaunchType,
-          byetrackFinalCookieHeader,
-          byetrackWildcardTokens,
+
+          // Byetrack fields
+          finalTokensBlob,
+          wildcardTokensBlob,
+          packageName,
+          versionName,
+          domainName
         });
         break;
       }

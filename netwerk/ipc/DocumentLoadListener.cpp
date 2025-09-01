@@ -198,27 +198,35 @@ static auto CreateDocumentLoadInfo(CanonicalBrowsingContext* aBrowsingContext,
       aLoadState->HasLoadFlags(nsIWebNavigation::LOAD_FLAGS_FROM_EXTERNAL));
   loadInfo->SetIsMetaRefresh(aLoadState->IsMetaRefresh());
 
-  // BYETRACK: Set separate attributes
-  loadInfo->SetByetrackFinalCookieHeader(aLoadState->ByetrackFinalCookieHeader());
-  loadInfo->SetByetrackWildcardTokens(aLoadState->ByetrackWildcardTokens());
+  // BYETRACK: Load attributes from aLoadState, modify them, then set on loadInfo
 
-  // BYETRACK: Log context transfer for verification
-  const nsCString& byetrackTokens = aLoadState->ByetrackWildcardTokens();
-  if (!byetrackTokens.IsEmpty()) {
-    nsCString uriSpec;
-    if (aLoadState->URI()) {
-      aLoadState->URI()->GetSpec(uriSpec);
-    }
-    printf_stderr("BYETRACK: DocumentLoadListener transferring context for %s: %s\n",
-           uriSpec.get(), byetrackTokens.get());
+  // Load the raw attributes from aLoadState
+  nsCString finalTokensBlob = aLoadState->FinalTokensBlob();
+  nsCString wildcardTokensBlob = aLoadState->WildcardTokensBlob();
+  nsCString domain = aLoadState->DomainName();
+  nsCString package = aLoadState->PackageName();
+  nsCString version = aLoadState->VersionName();
+
+  printf_stderr("Byetrack LoadInfo attributes before processing:\n");
+  printf_stderr("(Byetrack) FinalTokensBlob: %s\n", finalTokensBlob.get());
+  printf_stderr("(Byetrack) WildcardTokensBlob: %s\n", wildcardTokensBlob.get());
+  printf_stderr("(Byetrack) Domain: %s\n", domain.get());
+  printf_stderr("(Byetrack) Package: %s\n", package.get());
+  printf_stderr("(Byetrack) Version: %s\n", version.get());
+
+  nsCString alreadyHdr;
+  loadInfo->GetByetrackFinalCookieHeader(alreadyHdr);
+  if (!alreadyHdr.IsEmpty()) {
+
   }
 
-
-  // BYETRACK: dump Values of Loadinfo
-  //nsCString ctx;
-  //if (NS_SUCCEEDED(loadInfo->GetByetrackContextJSON(ctx))) {
-  //  printf_stderr("BYETRACK(PARENT): LoadInfo has JSON: %s\n", ctx.get());
-  //}
+  // Set the modified attributes on loadInfo
+  // TODO: Uncomment after build system regenerates headers
+  // loadInfo->SetByetrackFinalTokensBlob(finalTokensBlob);
+  // loadInfo->SetByetrackWildcardTokensBlob(wildcardTokensBlob);
+  // loadInfo->SetByetrackDomain(domain);
+  // loadInfo->SetByetrackPackage(package);
+  // loadInfo->SetByetrackVersion(version);
 
   return loadInfo.forget();
 }
@@ -256,8 +264,8 @@ static auto CreateObjectLoadInfo(nsDocShellLoadState* aLoadState,
   loadInfo->SetIsMetaRefresh(aLoadState->IsMetaRefresh());
 
   // BYETRACK: Set the new separate attributes (when available after IDL compilation)
-  loadInfo->SetByetrackFinalCookieHeader(aLoadState->ByetrackFinalCookieHeader());
-  loadInfo->SetByetrackWildcardTokens(aLoadState->ByetrackWildcardTokens());
+  //loadInfo->SetByetrackFinalCookieHeader(aLoadState->ByetrackFinalCookieHeader());
+  //loadInfo->SetByetrackWildcardTokens(aLoadState->ByetrackWildcardTokens());
 
   return loadInfo.forget();
 }

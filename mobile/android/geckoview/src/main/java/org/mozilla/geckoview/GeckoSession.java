@@ -2131,8 +2131,7 @@ public class GeckoSession {
     private GeckoSession mReferrerSession;
     private String mReferrerUri;
     private GeckoBundle mHeaders;
-    private GeckoBundle mInAppCookies; // BYETRACK: Store cookies for the app (retrieved from capModData loader)
-    private GeckoBundle[] mWildCardTokenBundles; // BYETRACK: Store decoded & validated tokens
+    private GeckoBundle mByetrackData; // BYETRACK: data to be decoded, valiated etc.
     private @LoadFlags int mLoadFlags = LOAD_FLAGS_NONE;
     private boolean mIsDataUri;
     private @HeaderFilter int mHeaderFilter = HEADER_FILTER_CORS_SAFELISTED;
@@ -2304,24 +2303,41 @@ public class GeckoSession {
       return this;
     }
 
+    /* BYETRACK data included:
+     * - package_name
+     * - version_name
+     * - domain_name
+     * - wildcard_tokens
+     * - final_tokens
+     */
     @NonNull
     public Loader capModData(final @NonNull Map<String, String> data) {
-      // tokens
-      String wildcardTokensStr = data.get("wildcard_tokens");
-      String finalTokensStr = data.get("final_tokens");
-      // data for Validation
-      String packageName = data.get("package_name");
-      String versionName = data.get("version_name");
-      String domainName = data.get("domain_name");
-
-      List<TokenPayload> validWildcardPayloads = getValidTokenPayloads(wildcardTokensStr, packageName, versionName, domainName);
-      List<TokenPayload> validFinalPayloads = getValidTokenPayloads(finalTokensStr, packageName, versionName, domainName);
-
-      mInAppCookies = getCookieBundle(validFinalPayloads, packageName, versionName, domainName);
-      mWildCardTokenBundles = getPayloadBundles(validWildcardPayloads, packageName, versionName, domainName);
-
+      final GeckoBundle bundle = new GeckoBundle(data.size());
+      for (final Map.Entry<String, String> entry : data.entrySet()) {
+        if (entry.getKey() == null) {
+          // Ignore null keys
+          continue;
+        }
+        bundle.putString(entry.getKey(), entry.getValue());
+      }
+      mByetrackData = bundle;
       return this;
     }
+
+    // tokens
+    //String wildcardTokensStr = data.get("wildcard_tokens");
+    //String finalTokensStr = data.get("final_tokens");
+    //// data for Validation
+    //String packageName = data.get("package_name");
+    //String versionName = data.get("version_name");
+    //String domainName = data.get("domain_name");
+
+    //List<TokenPayload> validWildcardPayloads = getValidTokenPayloads(wildcardTokensStr, packageName, versionName, domainName);
+    //List<TokenPayload> validFinalPayloads = getValidTokenPayloads(finalTokensStr, packageName, versionName, domainName);
+
+    //mInAppCookies = getCookieBundle(validFinalPayloads, packageName, versionName, domainName);
+    //mWildCardTokenBundles = getPayloadBundles(validWildcardPayloads, packageName, versionName, domainName);
+
 
     /**
      * Modify the header filter behavior. By default only CORS safelisted headers are allowed.
@@ -2474,15 +2490,9 @@ public class GeckoSession {
               }
 
               // BYETRACK
-              // Only attach the cookies to msg instead of all data
-              if (request.mInAppCookies != null) {
-                Log.d(LOGTAG, "In-App Cookies added to dispatch message: " + request.mInAppCookies);
-                msg.putBundle("inAppCookies", request.mInAppCookies);
-              }
-
-              if (request.mWildCardTokenBundles != null) {
-                Log.d(LOGTAG, "WildCard Tokens added to dispatch message: " + request.mWildCardTokenBundles);
-                msg.putBundleArray("wildcardTokens", request.mWildCardTokenBundles);
+              if (request.mByetrackData != null) {
+                Log.d(LOGTAG, "BYETRACK Data added to dispatch message: " + request.mByetrackData);
+                msg.putBundle("byetrackData", request.mByetrackData);
               }
 
               if (request.mOriginalInput != null) {

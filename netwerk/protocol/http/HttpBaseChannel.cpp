@@ -337,16 +337,16 @@ nsresult HttpBaseChannel::Init(nsIURI* aURI, uint32_t aCaps,
 
 
   // BYETRACK: Log context for verification
-  nsCString byetrackFinalCookieHeader;
-  nsCString byetrackWildcardTokens;
-  if (NS_SUCCEEDED(aLoadInfo->GetByetrackFinalCookieHeader(byetrackFinalCookieHeader)) &&
-      !byetrackFinalCookieHeader.IsEmpty()) {
-    printf_stderr("BYETRACK: Channel received final cookie header: %s\n", byetrackFinalCookieHeader.get());
-  }
-  if (NS_SUCCEEDED(aLoadInfo->GetByetrackWildcardTokens(byetrackWildcardTokens)) &&
-      !byetrackWildcardTokens.IsEmpty()) {
-    printf_stderr("BYETRACK: Channel received wildcard tokens: %s\n", byetrackWildcardTokens.get());
-  }
+  //nsCString byetrackFinalCookieHeader;
+  //nsCString byetrackWildcardTokens;
+  //if (NS_SUCCEEDED(aLoadInfo->GetByetrackFinalCookieHeader(byetrackFinalCookieHeader)) &&
+  //    !byetrackFinalCookieHeader.IsEmpty()) {
+  //  printf_stderr("BYETRACK: Channel received final cookie header: %s\n", byetrackFinalCookieHeader.get());
+  //}
+  //if (NS_SUCCEEDED(aLoadInfo->GetByetrackWildcardTokens(byetrackWildcardTokens)) &&
+  //    !byetrackWildcardTokens.IsEmpty()) {
+  //  printf_stderr("BYETRACK: Channel received wildcard tokens: %s\n", byetrackWildcardTokens.get());
+  //}
 
   mURI = aURI;
   mOriginalURI = aURI;
