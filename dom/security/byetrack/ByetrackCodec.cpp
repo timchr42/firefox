@@ -177,7 +177,7 @@ nsresult parseSingleToken(const nsACString& decodedJsonString, ByetrackToken& ou
   return NS_OK;
 }
 
-nsresult decodeTokenString(const nsACString& encoded, nsCString& decoded) {
+nsresult decodeTokenString(const nsACString& encoded, nsACString& decoded) {
   const int32_t dot = encoded.FindChar('.');
   if (dot <= 0 || dot == static_cast<int32_t>(encoded.Length()) - 1) {
     return NS_ERROR_INVALID_ARG;
