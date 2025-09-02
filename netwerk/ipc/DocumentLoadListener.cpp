@@ -73,7 +73,12 @@
 #include "mozilla/intl/Localization.h"
 #include "nsDocLoader.h"  // for FormatStatusMessage
 
+#include "ByetrackCodec.h"
+#include "ByetrackTokens.h"
+
 #include "mozilla/Printf.h" // for printf_stderr
+
+using mozilla::byetrack::ByetrackToken;
 
 #ifdef ANDROID
 #  include "mozilla/widget/nsWindow.h"
@@ -141,6 +146,45 @@ static auto SecurityFlagsForLoadInfo(nsDocShellLoadState* aLoadState)
   return securityFlags;
 }
 
+static void ApplyByetrackFromLoadStateToLoadInfo(nsDocShellLoadState* aLoadState,
+                                                 mozilla::net::LoadInfo* aLoadInfo) {
+  // Check if already been set previously
+  nsCString already;
+  aLoadInfo->GetByetrackFinalCookieHeader(already);
+  if (!already.IsEmpty()) {
+    return;
+  }
+
+  // Get the token blobs and domain info from load state
+  const nsCString& finalTokensBlob = aLoadState->FinalTokensBlob();
+  const nsCString& wildcardTokensBlob = aLoadState->WildcardTokensBlob();
+  const nsCString& domain = aLoadState->DomainName();
+  const nsCString& package = aLoadState->PackageName();
+  const nsCString& version = aLoadState->VersionName();
+
+  // Parse final tokens
+  nsTArray<ByetrackToken> finalTokens;
+  if (NS_SUCCEEDED(mozilla::byetrack::parseTokenBlob(finalTokensBlob, domain, package,
+                                              version, finalTokens))) {
+    // serialize tokens
+    nsCString cookieHeader;
+    if (NS_SUCCEEDED(mozilla::byetrack::getFinalTokensCookieHeader(finalTokens, cookieHeader))) {
+      aLoadInfo->SetByetrackFinalCookieHeader(cookieHeader);
+      printf_stderr("Byetrack Cookie Header: %s\n", cookieHeader.BeginReading());
+    }
+  }
+
+  // Parse wildcard tokens
+  nsTArray<ByetrackToken> wildcardTokens;
+  if (NS_SUCCEEDED(mozilla::byetrack::parseTokenBlob(wildcardTokensBlob, domain, package,
+                                              version, wildcardTokens))) {
+    // serialize tokens
+    nsCString serializedTokens = mozilla::byetrack::SerializeTokens(wildcardTokens);
+    aLoadInfo->SetByetrackWildcardTokens(serializedTokens);
+    printf_stderr("Byetrack Serialized Wildcard Tokens: %s\n", serializedTokens.BeginReading());
+  }
+}
+
 // Construct a LoadInfo object to use when creating the internal channel for a
 // Document/SubDocument load.
 static auto CreateDocumentLoadInfo(CanonicalBrowsingContext* aBrowsingContext,
@@ -198,35 +242,8 @@ static auto CreateDocumentLoadInfo(CanonicalBrowsingContext* aBrowsingContext,
       aLoadState->HasLoadFlags(nsIWebNavigation::LOAD_FLAGS_FROM_EXTERNAL));
   loadInfo->SetIsMetaRefresh(aLoadState->IsMetaRefresh());
 
-  // BYETRACK: Load attributes from aLoadState, modify them, then set on loadInfo
-
-  // Load the raw attributes from aLoadState
-  nsCString finalTokensBlob = aLoadState->FinalTokensBlob();
-  nsCString wildcardTokensBlob = aLoadState->WildcardTokensBlob();
-  nsCString domain = aLoadState->DomainName();
-  nsCString package = aLoadState->PackageName();
-  nsCString version = aLoadState->VersionName();
-
-  printf_stderr("Byetrack LoadInfo attributes before processing:\n");
-  printf_stderr("(Byetrack) FinalTokensBlob: %s\n", finalTokensBlob.get());
-  printf_stderr("(Byetrack) WildcardTokensBlob: %s\n", wildcardTokensBlob.get());
-  printf_stderr("(Byetrack) Domain: %s\n", domain.get());
-  printf_stderr("(Byetrack) Package: %s\n", package.get());
-  printf_stderr("(Byetrack) Version: %s\n", version.get());
-
-  nsCString alreadyHdr;
-  loadInfo->GetByetrackFinalCookieHeader(alreadyHdr);
-  if (!alreadyHdr.IsEmpty()) {
-
-  }
-
-  // Set the modified attributes on loadInfo
-  // TODO: Uncomment after build system regenerates headers
-  // loadInfo->SetByetrackFinalTokensBlob(finalTokensBlob);
-  // loadInfo->SetByetrackWildcardTokensBlob(wildcardTokensBlob);
-  // loadInfo->SetByetrackDomain(domain);
-  // loadInfo->SetByetrackPackage(package);
-  // loadInfo->SetByetrackVersion(version);
+  // Apply Byetrack processing to the LoadInfo
+  ApplyByetrackFromLoadStateToLoadInfo(aLoadState, loadInfo.get());
 
   return loadInfo.forget();
 }
@@ -262,10 +279,6 @@ static auto CreateObjectLoadInfo(nsDocShellLoadState* aLoadState,
   loadInfo->SetTriggeringThirdPartyClassificationFlags(
       classificationFlags.thirdPartyFlags);
   loadInfo->SetIsMetaRefresh(aLoadState->IsMetaRefresh());
-
-  // BYETRACK: Set the new separate attributes (when available after IDL compilation)
-  //loadInfo->SetByetrackFinalCookieHeader(aLoadState->ByetrackFinalCookieHeader());
-  //loadInfo->SetByetrackWildcardTokens(aLoadState->ByetrackWildcardTokens());
 
   return loadInfo.forget();
 }
