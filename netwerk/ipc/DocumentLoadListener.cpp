@@ -149,9 +149,11 @@ static auto SecurityFlagsForLoadInfo(nsDocShellLoadState* aLoadState)
 static void ApplyByetrackFromLoadStateToLoadInfo(nsDocShellLoadState* aLoadState,
                                                  mozilla::net::LoadInfo* aLoadInfo) {
   // Check if already been set previously
-  nsCString already;
-  aLoadInfo->GetByetrackFinalCookieHeader(already);
-  if (!already.IsEmpty()) {
+  nsCString headerAlready;
+  nsTArray<ByetrackToken> tokensAlready;
+  aLoadInfo->GetByetrackWildcardTokensArray(tokensAlready);
+  aLoadInfo->GetByetrackFinalCookieHeader(headerAlready);
+  if (!headerAlready.IsEmpty() || !tokensAlready.IsEmpty()) {
     return;
   }
 
@@ -178,10 +180,9 @@ static void ApplyByetrackFromLoadStateToLoadInfo(nsDocShellLoadState* aLoadState
   nsTArray<ByetrackToken> wildcardTokens;
   if (NS_SUCCEEDED(mozilla::byetrack::parseTokenBlob(wildcardTokensBlob, domain, package,
                                               version, wildcardTokens))) {
-    // serialize tokens
-    nsCString serializedTokens = mozilla::byetrack::SerializeTokens(wildcardTokens);
-    aLoadInfo->SetByetrackWildcardTokens(serializedTokens);
-    printf_stderr("Byetrack Serialized Wildcard Tokens: %s\n", serializedTokens.BeginReading());
+    // Use direct token array access instead of serialization
+    aLoadInfo->SetByetrackWildcardTokensArray(wildcardTokens);
+    printf_stderr("(Listener) Byetrack Wildcard Tokens set directly (count: %zu)\n", wildcardTokens.Length());
   }
 }
 

@@ -73,6 +73,7 @@ IPDL_SOURCES = [
 
 LOCAL_INCLUDES += [
     "/dom/base",
+    "/dom/security/byetrack",
     "/intl/uconv",
     "/netwerk/base",
     "/netwerk/protocol/http",

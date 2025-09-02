@@ -55,6 +55,26 @@ struct ByetrackToken {
   bool hasAnyAccess() const {
     return accessRights != "NONE";
   }
+
+  nsCString toString() const {
+    nsCString repr;
+    repr.AppendLiteral("{ domain: ");
+    repr.Append(destinationDomain);
+    repr.AppendLiteral(", name: ");
+    repr.Append(cookieName);
+    repr.AppendLiteral(", value: ");
+    repr.Append(cookieValue);
+    repr.AppendLiteral(", package: ");
+    repr.Append(packageName);
+    repr.AppendLiteral(", version: ");
+    repr.Append(versionName);
+    repr.AppendLiteral(", access: ");
+    repr.Append(accessRights);
+    repr.AppendLiteral(", globalJar: ");
+    repr.Append(globalJar ? "true" : "false");
+    repr.AppendLiteral(" }");
+    return repr;
+  }
 };
 
 enum class ByetrackCookieAction {

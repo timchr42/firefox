@@ -30,6 +30,10 @@ class nsPIDOMWindowOuter;
 
 namespace mozilla {
 
+namespace byetrack {
+struct ByetrackToken;
+}  // namespace byetrack
+
 namespace dom {
 class PerformanceStorage;
 class XMLHttpRequestMainThread;
@@ -245,6 +249,10 @@ class LoadInfo final : public nsILoadInfo {
  public:
   NS_DECL_ISUPPORTS
   NS_DECL_NSILOADINFO
+
+  // BYETRACK: Direct token array access methods (C++-only, non-virtual)
+  nsresult GetByetrackWildcardTokensArray(nsTArray<mozilla::byetrack::ByetrackToken>& aTokens);
+  nsresult SetByetrackWildcardTokensArray(const nsTArray<mozilla::byetrack::ByetrackToken>& aTokens);
 
   // Currently used for most load types, but prefer the specialized
   // factories below when possible. aLoadingPrincipal MUST NOT BE NULL.
@@ -555,8 +563,8 @@ class LoadInfo final : public nsILoadInfo {
   // BYETRACK: Final cookie header string for app cookies.
   nsCString mByetrackFinalCookieHeader;
 
-  // BYETRACK: JSON string containing wildcard tokens.
-  nsCString mByetrackWildcardTokens;
+  // BYETRACK: Array containing wildcard tokens.
+  nsTArray<mozilla::byetrack::ByetrackToken> mByetrackWildcardTokens;
 };
 // This is exposed solely for testing purposes and should not be used outside of
 // LoadInfo

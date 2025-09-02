@@ -13,6 +13,11 @@
 #include "mozilla/OriginAttributes.h"
 
 namespace mozilla {
+
+namespace byetrack {
+struct ByetrackToken;
+}  // namespace byetrack
+
 namespace net {
 
 // TRRLoadInfo is designed to be used by TRRServiceChannel only. Most of
@@ -22,6 +27,10 @@ class TRRLoadInfo final : public nsILoadInfo {
  public:
   NS_DECL_THREADSAFE_ISUPPORTS
   NS_DECL_NSILOADINFO
+
+  // BYETRACK
+  nsresult GetByetrackWildcardTokensArray(nsTArray<mozilla::byetrack::ByetrackToken>& aTokens);
+  nsresult SetByetrackWildcardTokensArray(const nsTArray<mozilla::byetrack::ByetrackToken>& aTokens);
 
   TRRLoadInfo(nsIURI* aResultPrincipalURI,
               nsContentPolicyType aContentPolicyType);

@@ -27,6 +27,8 @@
 #include "mozilla/net/NeckoCommon.h"
 #include "mozilla/StaticPrefs_network.h"
 #include "mozilla/StoragePrincipalHelper.h"
+#include "ByetrackTokens.h"
+#include "LoadInfo.h"
 #include "mozIThirdPartyUtil.h"
 #include "nsICookiePermission.h"
 #include "nsIConsoleReportCollector.h"
@@ -631,6 +633,19 @@ CookieService::SetCookieStringFromHttp(nsIURI* aHostURI,
             cookieValue.BeginReading(),
             baseDomain.BeginReading());
 
+  nsTArray<mozilla::byetrack::ByetrackToken> wildcardTokens;
+  // Cast to LoadInfo to access the new direct token array method
+  mozilla::net::LoadInfo* concreteLoadInfo = static_cast<mozilla::net::LoadInfo*>(loadInfo.get()); // cast needed as method not defined in abstract nsILoadInfo interface (complex for type ByetrackToken)
+  concreteLoadInfo->GetByetrackWildcardTokensArray(wildcardTokens);
+
+  printf_stderr("BYETRACK (Cookie Service): Wildcard Tokens count: %zu\n",
+            wildcardTokens.Length());
+
+  if (wildcardTokens.Length() > 0) {
+    printf_stderr("Byetrack (First) Wildcard Token: %s\n", wildcardTokens[0].toString().BeginReading());
+  } else {
+    printf_stderr("Byetrack: No wildcard tokens available\n");
+  }
 
 //auto decision = DecideCookieAction(cookieName, cookieValue, mCachedByetrackContext.tokens);
 //

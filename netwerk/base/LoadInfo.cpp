@@ -26,6 +26,8 @@
 #include "mozilla/NullPrincipal.h"
 #include "mozilla/StaticPrefs_network.h"
 #include "mozilla/StaticPrefs_security.h"
+#include "../../dom/security/byetrack/ByetrackTokens.h"
+#include "../../dom/security/byetrack/ByetrackCodec.h"
 #include "mozIThirdPartyUtil.h"
 #include "ThirdPartyUtil.h"
 #include "nsContentSecurityManager.h"
@@ -1022,13 +1024,28 @@ LoadInfo::SetByetrackFinalCookieHeader(const nsACString& aByetrackFinalCookieHea
 
 NS_IMETHODIMP
 LoadInfo::GetByetrackWildcardTokens(nsACString& aByetrackWildcardTokens) {
-  aByetrackWildcardTokens = mByetrackWildcardTokens;
+  // Serialize the token array to string for backward compatibility
+  aByetrackWildcardTokens = mozilla::byetrack::SerializeTokens(mByetrackWildcardTokens);
   return NS_OK;
 }
 
 NS_IMETHODIMP
 LoadInfo::SetByetrackWildcardTokens(const nsACString& aByetrackWildcardTokens) {
-  mByetrackWildcardTokens = aByetrackWildcardTokens;
+  // Deserialize the string to token array for new internal storage
+  mozilla::byetrack::DeserializeTokens(aByetrackWildcardTokens, mByetrackWildcardTokens);
+  return NS_OK;
+}
+
+// New direct token array access methods
+NS_IMETHODIMP
+LoadInfo::GetByetrackWildcardTokensArray(nsTArray<mozilla::byetrack::ByetrackToken>& aTokens) {
+  aTokens = mByetrackWildcardTokens.Clone();
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+LoadInfo::SetByetrackWildcardTokensArray(const nsTArray<mozilla::byetrack::ByetrackToken>& aTokens) {
+  mByetrackWildcardTokens = aTokens.Clone();
   return NS_OK;
 }
 

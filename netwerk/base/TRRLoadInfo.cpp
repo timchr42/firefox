@@ -570,5 +570,15 @@ TRRLoadInfo::SetByetrackWildcardTokens(const nsACString& aByetrackWildcardTokens
   return NS_ERROR_NOT_IMPLEMENTED;
 }
 
+NS_IMETHODIMP
+TRRLoadInfo::GetByetrackWildcardTokensArray(nsTArray<mozilla::byetrack::ByetrackToken>& aTokens) {
+  return NS_ERROR_NOT_IMPLEMENTED;
+}
+
+NS_IMETHODIMP
+TRRLoadInfo::SetByetrackWildcardTokensArray(const nsTArray<mozilla::byetrack::ByetrackToken>& aTokens) {
+  return NS_ERROR_NOT_IMPLEMENTED;
+}
+
 }  // namespace net
 }  // namespace mozilla
