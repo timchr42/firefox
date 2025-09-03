@@ -154,6 +154,7 @@ static void ApplyByetrackFromLoadStateToLoadInfo(nsDocShellLoadState* aLoadState
   aLoadInfo->GetByetrackWildcardTokensArray(tokensAlready);
   aLoadInfo->GetByetrackFinalCookieHeader(headerAlready);
   if (!headerAlready.IsEmpty() || !tokensAlready.IsEmpty()) {
+    printf("Byetrack (Listener) Already set tokens or cookie header => Skip\n");
     return;
   }
 
@@ -183,6 +184,8 @@ static void ApplyByetrackFromLoadStateToLoadInfo(nsDocShellLoadState* aLoadState
     // Use direct token array access instead of serialization
     aLoadInfo->SetByetrackWildcardTokensArray(wildcardTokens);
     printf_stderr("(Listener) Byetrack Wildcard Tokens set directly (count: %zu)\n", wildcardTokens.Length());
+  } else {
+    printf_stderr("Byetrack (Listener) Failed to parse/decode/validate wildcard tokens\n");
   }
 }
 
