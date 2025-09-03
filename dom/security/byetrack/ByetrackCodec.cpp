@@ -15,7 +15,12 @@ nsresult parseTokenBlob(const nsACString& aBlob, const nsACString& aDomainName,
                         const nsACString& aPackageName, const nsACString& aVersionName,
                         nsTArray<ByetrackToken>& outTokens) {
 
+  if (aBlob.IsEmpty()) {
+    printf_stderr("Byetrack (Codec) empty token blob => skip parsing\n");
+    return NS_OK; // no tokens => no work to do
+  }
   printf_stderr("Byetrack (Codec) parsing token blob: %s\n", aBlob.BeginReading());
+
   // Get JS context for parsing
   dom::AutoJSAPI jsapi;
   if (!jsapi.Init(xpc::PrivilegedJunkScope())) {
@@ -81,7 +86,6 @@ nsresult parseTokenBlob(const nsACString& aBlob, const nsACString& aDomainName,
     if (NS_FAILED(parse_rv)) {
       return parse_rv;
     }
-    printf_stderr("Byetrack (Codec) decoded token: %s\n", decodedToken.toString().BeginReading());
 
     nsresult validate_rv = validateTokenFields(aPackageName, aVersionName, aDomainName, decodedToken);
     if (NS_FAILED(validate_rv)) {

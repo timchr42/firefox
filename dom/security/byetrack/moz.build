@@ -16,7 +16,6 @@ EXPORTS.mozilla.byetrack += [
 UNIFIED_SOURCES += [
     "ByetrackCodec.cpp",
     "ByetrackCrypto.cpp",
-    "ByetrackTokens.cpp",
 ]
 
 FINAL_LIBRARY = "xul"

@@ -154,9 +154,10 @@ static void ApplyByetrackFromLoadStateToLoadInfo(nsDocShellLoadState* aLoadState
   aLoadInfo->GetByetrackWildcardTokensArray(tokensAlready);
   aLoadInfo->GetByetrackFinalCookieHeader(headerAlready);
   if (!headerAlready.IsEmpty() || !tokensAlready.IsEmpty()) {
-    printf("Byetrack (Listener) Already set tokens or cookie header => Skip\n");
+    printf_stderr("Byetrack (Listener) Already set tokens or cookie header => Skip\n");
     return;
   }
+  printf_stderr("Byetrack (Listener) No already existing tokens or cookie header found => Do Parsing\n");
 
   // Get the token blobs and domain info from load state
   const nsCString& finalTokensBlob = aLoadState->FinalTokensBlob();
@@ -169,15 +170,13 @@ static void ApplyByetrackFromLoadStateToLoadInfo(nsDocShellLoadState* aLoadState
   nsTArray<ByetrackToken> finalTokens;
   if (NS_SUCCEEDED(mozilla::byetrack::parseTokenBlob(finalTokensBlob, domain, package,
                                               version, finalTokens))) {
-    // serialize tokens
     nsCString cookieHeader;
     if (NS_SUCCEEDED(mozilla::byetrack::getFinalTokensCookieHeader(finalTokens, cookieHeader))) {
       aLoadInfo->SetByetrackFinalCookieHeader(cookieHeader);
-      printf_stderr("Byetrack Cookie Header: %s\n", cookieHeader.BeginReading());
+      printf_stderr("(Listener) Byetrack Cookie Header: %s\n", cookieHeader.BeginReading());
     }
   }
 
-  // Parse wildcard tokens
   nsTArray<ByetrackToken> wildcardTokens;
   if (NS_SUCCEEDED(mozilla::byetrack::parseTokenBlob(wildcardTokensBlob, domain, package,
                                               version, wildcardTokens))) {

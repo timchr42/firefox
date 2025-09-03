@@ -17,8 +17,6 @@ nsresult hmac_sha256(std::string_view msg, FallibleTArray<uint8_t>& outHmac) {
     keyItem.data = (unsigned char*)SECRET_KEY;
     keyItem.len  = (unsigned int)strlen(SECRET_KEY);
 
-    printf_stderr("Byetrack (Crypto) Using key length: %u\n", keyItem.len);
-
     PK11SlotInfo* slot = PK11_GetInternalSlot();
     if (!slot) {
         printf_stderr("Byetrack (Crypto) Failed to get internal slot\n");
@@ -78,8 +76,6 @@ nsresult hmac_sha256(std::string_view msg, FallibleTArray<uint8_t>& outHmac) {
         return NS_ERROR_FAILURE;
     }
 
-    printf_stderr("Byetrack (Crypto) HMAC calculated successfully, length: %u\n", out_len);
-
     // Copy to FallibleTArray
     if (!outHmac.SetLength(out_len, fallible)) {
         printf_stderr("Byetrack (Crypto) Failed to allocate output array\n");
@@ -87,7 +83,6 @@ nsresult hmac_sha256(std::string_view msg, FallibleTArray<uint8_t>& outHmac) {
     }
 
     memcpy(outHmac.Elements(), out, out_len);
-    printf_stderr("Byetrack (Crypto) HMAC copied to output array successfully\n");
     return NS_OK;
 }
 

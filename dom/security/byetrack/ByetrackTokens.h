@@ -80,7 +80,8 @@ struct ByetrackToken {
 enum class ByetrackCookieAction {
   StoreNormally,
   CapturePredefined,
-  CaptureWildcard
+  CaptureWildcard,
+  Reject
 };
 
 struct ByetrackCookieDecision {

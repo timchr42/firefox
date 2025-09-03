@@ -27,7 +27,7 @@
 #include "mozilla/net/NeckoCommon.h"
 #include "mozilla/StaticPrefs_network.h"
 #include "mozilla/StoragePrincipalHelper.h"
-#include "ByetrackTokens.h"
+#include "mozilla/byetrack/ByetrackTokens.h"
 #include "LoadInfo.h"
 #include "mozIThirdPartyUtil.h"
 #include "nsICookiePermission.h"
@@ -625,46 +625,50 @@ CookieService::SetCookieStringFromHttp(nsIURI* aHostURI,
 
   // BYETRACK: Token enforcement
 
-  const nsCString& cookieName = cookieParser.CookieData().name();
-  const nsCString& cookieValue = cookieParser.CookieData().value();
-
-  printf_stderr("BYETRACK: Looking up tokens for cookie %s=%s of domain %s\n",
-            cookieName.BeginReading(),
-            cookieValue.BeginReading(),
-            baseDomain.BeginReading());
-
   nsTArray<mozilla::byetrack::ByetrackToken> wildcardTokens;
   // Cast to LoadInfo to access the new direct token array method
   mozilla::net::LoadInfo* concreteLoadInfo = static_cast<mozilla::net::LoadInfo*>(loadInfo.get()); // cast needed as method not defined in abstract nsILoadInfo interface (complex for type ByetrackToken)
   concreteLoadInfo->GetByetrackWildcardTokensArray(wildcardTokens);
 
-  printf_stderr("BYETRACK (Cookie Service): Wildcard Tokens count: %zu\n",
-            wildcardTokens.Length());
+  printf_stderr("Byetrack (Cookie Service) Token count: %zu\n", wildcardTokens.Length());
 
   if (wildcardTokens.Length() > 0) {
-    printf_stderr("Byetrack (First) Wildcard Token: %s\n", wildcardTokens[0].toString().BeginReading());
+    printf_stderr("Byetrack (Cookie Service) (First) Wildcard Token: %s\n", wildcardTokens[0].toString().BeginReading());
   } else {
-    printf_stderr("Byetrack: No wildcard tokens available\n");
+    printf_stderr("Byetrack (Cookie Service): No wildcard tokens available\n");
   }
 
-//auto decision = DecideCookieAction(cookieName, cookieValue, mCachedByetrackContext.tokens);
-//
-//switch (decision.action) {
-//  case ByetrackCookieAction::StoreNormally:
-//    printf_stderr("BYETRACK: Cookie accepted - global jar or no match\n");
-//    break;
-//
-//  case ByetrackCookieAction::CapturePredefined:
-//    decision.token->SetCookieValue(cookieValue);
-//    printf_stderr("BYETRACK: Token updated with predefined cookie value, not storing cookie\n");
-//    return NS_OK;
-//
-//  case ByetrackCookieAction::CaptureWildcard:
-//    decision.token->SetCookieName(cookieName);
-//    decision.token->SetCookieValue(cookieValue);
-//    printf_stderr("BYETRACK: Token updated with wildcard cookie name and value, not storing cookie\n");
-//    return NS_OK;
-//}
+  const nsCString& cookieName = cookieParser.CookieData().name();
+  const nsCString& cookieValue = cookieParser.CookieData().value();
+
+  printf_stderr("BYETRACK (CookieService): Looking up tokens for cookie %s=%s of domain %s\n",
+            cookieName.BeginReading(),
+            cookieValue.BeginReading(),
+            baseDomain.BeginReading());
+
+  auto decision = DecideCookieAction(cookieName, cookieValue, wildcardTokens);
+
+  switch (decision.action) {
+    case byetrack::ByetrackCookieAction::StoreNormally:
+      printf_stderr("BYETRACK (CookieService): Cookie accepted - global jar or no match\n");
+      break;
+
+    case byetrack::ByetrackCookieAction::CapturePredefined:
+      decision.token->SetCookieValue(cookieValue);
+      printf_stderr("BYETRACK (CookieService): Token updated with predefined cookie value, not storing cookie\n");
+      //sendBack()
+      return NS_OK;
+
+    case byetrack::ByetrackCookieAction::CaptureWildcard:
+      decision.token->SetCookieName(cookieName);
+      decision.token->SetCookieValue(cookieValue);
+      printf_stderr("BYETRACK (CookieService): Token updated with wildcard cookie name and value, not storing cookie\n");
+      //sendBack()
+      return NS_OK;
+    case byetrack::ByetrackCookieAction::Reject:
+      printf_stderr("BYETRACK (CookieService): Cookie rejected by default\n");
+      return NS_OK;
+  }
 
   // CHIPS - If the partitioned attribute is set, store cookie in partitioned
   // cookie jar independent of context. If the cookies are stored in the
@@ -696,6 +700,8 @@ CookieService::SetCookieStringFromHttp(nsIURI* aHostURI,
   storage->AddCookie(&cookieParser, baseDomain, cookieOriginAttributes, cookie,
                      currentTimeInUsec, aHostURI, aCookieHeader, true,
                      isForeignAndNotAddon, bc);
+
+  printf_stderr("Byetrack (CookieService) Cookie Header stored: %s\n", aCookieHeader.BeginReading());
 
   return NS_OK;
 }
@@ -1945,137 +1951,18 @@ CookieService::MaybeCapExpiry(int64_t aExpiryInMSec, int64_t* aResult) {
   return NS_OK;
 }
 
-nsresult
-CookieService::ParseByetrackTokens(const nsACString& aJSON) {
-  // Early return if JSON hasn't changed
-  if (mCachedByetrackContext.originalJSON.Equals(aJSON)) {
-    printf_stderr("BYETRACK: Context JSON hasn't changed, skipping parse\n");
-    return NS_OK;
-  }
-
-  // Reset the cached context
-  //mCachedByetrackContext.inAppCookiesHeader.Clear();
-  mCachedByetrackContext.tokens.Clear();
-  mCachedByetrackContext.originalJSON = aJSON;
-
-  // Get JS context for parsing
-  AutoJSAPI jsapi;
-  if (!jsapi.Init(xpc::PrivilegedJunkScope())) {
-    return NS_ERROR_FAILURE;
-  }
-  JSContext* cx = jsapi.cx();
-
-  // Parse JSON
-  JS::Rooted<JS::Value> jsonValue(cx);
-  if (!JS_ParseJSON(cx, NS_ConvertUTF8toUTF16(aJSON).BeginReading(),
-                    aJSON.Length(), &jsonValue) ||
-      !jsonValue.isObject()) {
-    return NS_ERROR_INVALID_ARG;
-  }
-
-  JS::Rooted<JSObject*> jsonObj(cx, &jsonValue.toObject());
-
-  // Parse wildcardTokens array
-  JS::Rooted<JS::Value> wildcardTokensValue(cx);
-  if (JS_GetProperty(cx, jsonObj, "wildcardTokens", &wildcardTokensValue) &&
-      wildcardTokensValue.isObject()) {
-    JS::Rooted<JSObject*> wildcardTokensArray(cx, &wildcardTokensValue.toObject());
-
-    bool isArray;
-    if (JS::IsArrayObject(cx, wildcardTokensArray, &isArray) && isArray) {
-      uint32_t length;
-      if (JS::GetArrayLength(cx, wildcardTokensArray, &length)) {
-        for (uint32_t i = 0; i < length; i++) {
-          JS::Rooted<JS::Value> tokenValue(cx);
-          if (JS_GetElement(cx, wildcardTokensArray, i, &tokenValue) &&
-              tokenValue.isObject()) {
-            JS::Rooted<JSObject*> tokenObj(cx, &tokenValue.toObject());
-            ByetrackToken token;
-
-            // Parse each field
-            JS::Rooted<JS::Value> fieldValue(cx);
-
-            if (JS_GetProperty(cx, tokenObj, "destinationDomain", &fieldValue) &&
-                fieldValue.isString()) {
-              JSString* str = fieldValue.toString();
-              nsAutoJSString autoStr;
-              if (autoStr.init(cx, str)) {
-                token.destinationDomain = NS_ConvertUTF16toUTF8(autoStr);
-              }
-            }
-
-            if (JS_GetProperty(cx, tokenObj, "cookieName", &fieldValue) &&
-                fieldValue.isString()) {
-              JSString* str = fieldValue.toString();
-              nsAutoJSString autoStr;
-              if (autoStr.init(cx, str)) {
-                token.cookieName = NS_ConvertUTF16toUTF8(autoStr);
-              }
-            }
-
-            if (JS_GetProperty(cx, tokenObj, "cookieValue", &fieldValue)) {
-              if (fieldValue.isString()) {
-                JSString* str = fieldValue.toString();
-                nsAutoJSString autoStr;
-                if (autoStr.init(cx, str)) {
-                  token.cookieValue = NS_ConvertUTF16toUTF8(autoStr);
-                }
-              }
-              // If null, leave cookieValue empty
-            }
-
-            if (JS_GetProperty(cx, tokenObj, "applicationId", &fieldValue) &&
-                fieldValue.isString()) {
-              JSString* str = fieldValue.toString();
-              nsAutoJSString autoStr;
-              if (autoStr.init(cx, str)) {
-                token.applicationId = NS_ConvertUTF16toUTF8(autoStr);
-              }
-            }
-
-            if (JS_GetProperty(cx, tokenObj, "versionName", &fieldValue) &&
-                fieldValue.isString()) {
-              JSString* str = fieldValue.toString();
-              nsAutoJSString autoStr;
-              if (autoStr.init(cx, str)) {
-                token.versionName = NS_ConvertUTF16toUTF8(autoStr);
-              }
-            }
-
-            if (JS_GetProperty(cx, tokenObj, "globalJar", &fieldValue)) {
-              if (fieldValue.isBoolean()) {
-                token.globalJar = fieldValue.toBoolean();
-              }
-            }
-
-            if (JS_GetProperty(cx, tokenObj, "accessRights", &fieldValue) &&
-                fieldValue.isString()) {
-              JSString* str = fieldValue.toString();
-              nsAutoJSString autoStr;
-              if (autoStr.init(cx, str)) {
-                nsCString accessRightsStr = NS_ConvertUTF16toUTF8(autoStr);
-                token.accessRights = accessRightsStr;
-              }
-            }
-
-            mCachedByetrackContext.tokens.AppendElement(token);
-          }
-        }
-      }
-    }
-  }
-
-  return NS_OK;
-}
-
-ByetrackCookieDecision CookieService::DecideCookieAction(
+byetrack::ByetrackCookieDecision CookieService::DecideCookieAction(
     const nsACString& aCookieName,
     const nsACString& aCookieValue,
-    nsTArray<ByetrackToken>& aTokens)
-{
+    nsTArray<byetrack::ByetrackToken>& aTokens) {
+
+  if (aTokens.IsEmpty()) {
+    return {byetrack::ByetrackCookieAction::Reject, nullptr};
+  }
+
   bool hasGlobal = false;
-  ByetrackToken* predefined = nullptr;
-  ByetrackToken* wildcard   = nullptr;
+  byetrack::ByetrackToken* predefined = nullptr;
+  byetrack::ByetrackToken* wildcard   = nullptr;
 
   for (auto& token : aTokens) {
     if (token.globalJar) {
@@ -2090,15 +1977,15 @@ ByetrackCookieDecision CookieService::DecideCookieAction(
     }
   }
   if (hasGlobal) {
-    return {ByetrackCookieAction::StoreNormally, nullptr};
+    return {byetrack::ByetrackCookieAction::StoreNormally, nullptr};
   }
   if (predefined) {
-    return {ByetrackCookieAction::CapturePredefined, predefined};
+    return {byetrack::ByetrackCookieAction::CapturePredefined, predefined};
   }
   if (wildcard) {
-    return {ByetrackCookieAction::CaptureWildcard, wildcard};
+    return {byetrack::ByetrackCookieAction::CaptureWildcard, wildcard};
   }
-  return {ByetrackCookieAction::StoreNormally, nullptr};
+  return {byetrack::ByetrackCookieAction::Reject, nullptr};
 }
 
 
