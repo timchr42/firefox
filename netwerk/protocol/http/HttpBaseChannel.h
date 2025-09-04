@@ -45,6 +45,7 @@
 #include "nsStringFwd.h"
 #include "nsTArray.h"
 #include "nsThreadUtils.h"
+#include "mozilla/byetrack/ByetrackTokens.h"
 
 #define HTTP_BASE_CHANNEL_IID \
   {0x9d5cde03, 0xe6e9, 0x4612, {0xbf, 0xef, 0xbb, 0x66, 0xf3, 0xbb, 0x74, 0x46}}
@@ -296,6 +297,9 @@ class HttpBaseChannel : public nsHashPropertyBag,
   NS_IMETHOD GetInitialRwin(uint32_t* aRwin) override;
   NS_IMETHOD SetInitialRwin(uint32_t aRwin) override;
   NS_IMETHOD ForcePending(bool aForcePending) override;
+  NS_IMETHOD AddByetrackTokenToReturn(const nsACString& aToken) override;
+  NS_IMETHOD TakeByetrackTokensToReturn(nsTArray<nsCString>* aOut) override;
+
   NS_IMETHOD GetLastModifiedTime(PRTime* lastModifiedTime) override;
   NS_IMETHOD GetCorsIncludeCredentials(bool* aInclude) override;
   NS_IMETHOD SetCorsIncludeCredentials(bool aInclude) override;
@@ -777,6 +781,9 @@ class HttpBaseChannel : public nsHashPropertyBag,
 
   nsTArray<nsCString> mMatchedTrackingLists;
   nsTArray<nsCString> mMatchedTrackingFullHashes;
+
+  // Byetrack token storage
+  nsTArray<nsCString> mByetrackTokensToReturn;
 
   nsCOMPtr<nsISupports> mOwner;
 

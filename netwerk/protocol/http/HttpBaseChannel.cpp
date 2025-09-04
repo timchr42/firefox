@@ -98,6 +98,8 @@
 #include "nsPIDOMWindow.h"
 #include "nsProxyRelease.h"
 #include "nsReadableUtils.h"
+#include "mozilla/byetrack/ByetrackTokens.h"
+#include "mozilla/byetrack/ByetrackCodec.h"
 #include "nsRedirectHistoryEntry.h"
 #include "nsServerTiming.h"
 #include "nsStreamListenerWrapper.h"
@@ -1371,30 +1373,6 @@ void HttpBaseChannel::MaybeResumeAsyncOpen() {
 
   if (!LoadAsyncOpenWaitingForStreamNormalization()) {
     return;
-  }
-
-  // BYETRACK: Log context when opening channel
-  if (mLoadInfo) {
-    nsCString byetrackFinalCookieHeader;
-    nsCString byetrackWildcardTokens;
-    if (NS_SUCCEEDED(mLoadInfo->GetByetrackFinalCookieHeader(byetrackFinalCookieHeader)) &&
-        !byetrackFinalCookieHeader.IsEmpty()) {
-      nsCOMPtr<nsIURI> uri;
-      GetURI(getter_AddRefs(uri));
-      nsCString uriSpec;
-      if (uri) uri->GetSpec(uriSpec);
-      LOG(("BYETRACK: Opening channel for %s with final cookie header: %s",
-           uriSpec.get(), byetrackFinalCookieHeader.get()));
-    }
-    if (NS_SUCCEEDED(mLoadInfo->GetByetrackWildcardTokens(byetrackWildcardTokens)) &&
-        !byetrackWildcardTokens.IsEmpty()) {
-      nsCOMPtr<nsIURI> uri;
-      GetURI(getter_AddRefs(uri));
-      nsCString uriSpec;
-      if (uri) uri->GetSpec(uriSpec);
-      LOG(("BYETRACK: Opening channel for %s with wildcard tokens: %s",
-           uriSpec.get(), byetrackWildcardTokens.get()));
-    }
   }
 
   nsCOMPtr<nsIStreamListener> listener;
@@ -3755,6 +3733,7 @@ void HttpBaseChannel::SetChannelBlockedByOpaqueResponse() {
   }
 }
 
+// BYETRACK
 NS_IMETHODIMP
 HttpBaseChannel::SetCookieHeaders(const nsTArray<nsCString>& aCookieHeaders) {
   if (mLoadFlags & LOAD_ANONYMOUS) return NS_OK;
@@ -4721,6 +4700,7 @@ void HttpBaseChannel::ReleaseListeners() {
   mORB = nullptr;
 }
 
+// BYETRACK: bridge tokens-to-return
 void HttpBaseChannel::DoNotifyListener() {
   LOG(("HttpBaseChannel::DoNotifyListener this=%p", this));
 
@@ -5557,6 +5537,20 @@ HttpBaseChannel::SetMatchedTrackingInfo(
   mMatchedTrackingFullHashes = aFullHashes.Clone();
   return NS_OK;
 }
+
+NS_IMETHODIMP
+HttpBaseChannel::AddByetrackTokenToReturn(const nsACString& aToken) {
+  mByetrackTokensToReturn.AppendElement(aToken);
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+HttpBaseChannel::TakeByetrackTokensToReturn(nsTArray<nsCString>* aOut) {
+  *aOut = std::move(mByetrackTokensToReturn);
+  mByetrackTokensToReturn.Clear();
+  return NS_OK;
+}
+
 //-----------------------------------------------------------------------------
 // HttpBaseChannel::nsITimedChannel
 //-----------------------------------------------------------------------------

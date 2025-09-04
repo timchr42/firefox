@@ -249,6 +249,141 @@ nsresult decodeTokenString(const nsACString& encoded, nsACString& decoded) {
   return NS_OK;
 }
 
+nsresult encodeToken(const ByetrackToken& token, nsACString& outEncoded) {
+  // Get JS context for JSON serialization
+  dom::AutoJSAPI jsapi;
+  if (!jsapi.Init(xpc::PrivilegedJunkScope())) {
+    return NS_ERROR_FAILURE;
+  }
+  JSContext* cx = jsapi.cx();
+
+  // Create JS object for the token
+  JS::Rooted<JSObject*> tokenObj(cx, JS_NewPlainObject(cx));
+  if (!tokenObj) {
+    return NS_ERROR_OUT_OF_MEMORY;
+  }
+
+  // Set properties on the object
+  JS::Rooted<JSString*> jsStr(cx);
+  JS::Rooted<JS::Value> jsVal(cx);
+
+  // destination_domain
+  jsStr = JS_NewStringCopyZ(cx, token.destinationDomain.get());
+  if (!jsStr) return NS_ERROR_OUT_OF_MEMORY;
+  jsVal.setString(jsStr);
+  if (!JS_SetProperty(cx, tokenObj, "destination_domain", jsVal)) {
+    return NS_ERROR_FAILURE;
+  }
+
+  // cookie_name
+  jsStr = JS_NewStringCopyZ(cx, token.cookieName.get());
+  if (!jsStr) return NS_ERROR_OUT_OF_MEMORY;
+  jsVal.setString(jsStr);
+  if (!JS_SetProperty(cx, tokenObj, "cookie_name", jsVal)) {
+    return NS_ERROR_FAILURE;
+  }
+
+  // cookie_value (can be null/empty)
+  if (token.cookieValue.IsEmpty()) {
+    jsVal.setNull();
+  } else {
+    jsStr = JS_NewStringCopyZ(cx, token.cookieValue.get());
+    if (!jsStr) return NS_ERROR_OUT_OF_MEMORY;
+    jsVal.setString(jsStr);
+  }
+  if (!JS_SetProperty(cx, tokenObj, "cookie_value", jsVal)) {
+    return NS_ERROR_FAILURE;
+  }
+
+  // application_id
+  jsStr = JS_NewStringCopyZ(cx, token.packageName.get());
+  if (!jsStr) return NS_ERROR_OUT_OF_MEMORY;
+  jsVal.setString(jsStr);
+  if (!JS_SetProperty(cx, tokenObj, "application_id", jsVal)) {
+    return NS_ERROR_FAILURE;
+  }
+
+  // version_name
+  jsStr = JS_NewStringCopyZ(cx, token.versionName.get());
+  if (!jsStr) return NS_ERROR_OUT_OF_MEMORY;
+  jsVal.setString(jsStr);
+  if (!JS_SetProperty(cx, tokenObj, "version_name", jsVal)) {
+    return NS_ERROR_FAILURE;
+  }
+
+  // global_jar
+  jsVal.setBoolean(token.globalJar);
+  if (!JS_SetProperty(cx, tokenObj, "global_jar", jsVal)) {
+    return NS_ERROR_FAILURE;
+  }
+
+  // access_rights
+  jsStr = JS_NewStringCopyZ(cx, token.accessRights.get());
+  if (!jsStr) return NS_ERROR_OUT_OF_MEMORY;
+  jsVal.setString(jsStr);
+  if (!JS_SetProperty(cx, tokenObj, "access_rights", jsVal)) {
+    return NS_ERROR_FAILURE;
+  }
+
+  // Stringify the object to JSON
+  JS::Rooted<JS::Value> tokenValue(cx, JS::ObjectValue(*tokenObj));
+  nsCString jsonString;
+  
+  // Helper function to collect JSON string - similar to nsContentUtils
+  auto jsonCollector = [](const char16_t* buf, uint32_t len, void* data) {
+    nsCString* str = static_cast<nsCString*>(data);
+    str->Append(NS_ConvertUTF16toUTF8(nsDependentString(buf, len)));
+    return true;
+  };
+  
+  if (!JS_Stringify(cx, &tokenValue, nullptr, JS::NullHandleValue,
+                    jsonCollector, &jsonString)) {
+    return NS_ERROR_FAILURE;
+  }
+
+  printf_stderr("Byetrack (Codec) JSON string to encode: %s\n", jsonString.BeginReading());
+
+  // Base64URL encode the JSON payload
+  nsCString payloadB64;
+  nsresult rv = mozilla::Base64URLEncode(
+      jsonString.Length(),
+      reinterpret_cast<const uint8_t*>(jsonString.BeginReading()),
+      mozilla::Base64URLEncodePaddingPolicy::Omit,
+      payloadB64);
+  if (NS_FAILED(rv)) {
+    printf_stderr("Byetrack (Codec) Failed to base64url encode payload\n");
+    return rv;
+  }
+
+  // Calculate HMAC signature for the JSON payload (not the base64 encoded version)
+  std::string_view payloadView(jsonString.BeginReading(), jsonString.Length());
+  FallibleTArray<uint8_t> hmacBytes;
+  rv = hmac_sha256(payloadView, hmacBytes);
+  if (NS_FAILED(rv)) {
+    printf_stderr("Byetrack (Codec) Failed to calculate HMAC\n");
+    return rv;
+  }
+
+  // Base64URL encode the signature
+  nsCString signatureB64;
+  rv = mozilla::Base64URLEncode(
+      hmacBytes.Length(),
+      hmacBytes.Elements(),
+      mozilla::Base64URLEncodePaddingPolicy::Omit,
+      signatureB64);
+  if (NS_FAILED(rv)) {
+    printf_stderr("Byetrack (Codec) Failed to base64url encode signature\n");
+    return rv;
+  }
+
+  // Combine payload and signature with a dot
+  outEncoded.Assign(payloadB64);
+  outEncoded.AppendLiteral(".");
+  outEncoded.Append(signatureB64);
+
+  printf_stderr("Byetrack (Codec) successfully encoded token: %s\n", outEncoded.BeginReading());
+  return NS_OK;
+}
 
 nsresult validateTokenFields(const nsACString &expectedPackageName, const nsACString &expectedVersionName, const nsACString &expectedDomainName, const ByetrackToken &token) {
   if (token.packageName != expectedPackageName) {
@@ -412,6 +547,68 @@ bool DeserializeTokens(const nsACString& bin, nsTArray<ByetrackToken>& out)
   // if (p != end) return false;
 
   return true;
+}
+
+nsresult testEncodeDecodeRoundtrip() {
+  // Create a test token
+  ByetrackToken testToken;
+  testToken.destinationDomain = "example.com";
+  testToken.cookieName = "test_cookie";
+  testToken.cookieValue = "test_value";
+  testToken.packageName = "com.example.app";
+  testToken.versionName = "1.0.0";
+  testToken.accessRights = "READ_WRITE";
+  testToken.globalJar = true;
+
+  printf_stderr("Byetrack (Codec) Testing encode/decode roundtrip...\n");
+  printf_stderr("Byetrack (Codec) Original token: %s\n", testToken.toString().BeginReading());
+
+  // Encode the token
+  nsCString encodedToken;
+  nsresult rv = encodeToken(testToken, encodedToken);
+  if (NS_FAILED(rv)) {
+    printf_stderr("Byetrack (Codec) Failed to encode token\n");
+    return rv;
+  }
+  printf_stderr("Byetrack (Codec) Encoded token: %s\n", encodedToken.BeginReading());
+
+  // Decode the encoded token
+  nsCString decodedJson;
+  rv = decodeTokenString(encodedToken, decodedJson);
+  if (NS_FAILED(rv)) {
+    printf_stderr("Byetrack (Codec) Failed to decode token\n");
+    return rv;
+  }
+  printf_stderr("Byetrack (Codec) Decoded JSON: %s\n", decodedJson.BeginReading());
+
+  // Parse the decoded JSON back to a token
+  ByetrackToken decodedToken;
+  rv = parseSingleToken(decodedJson, decodedToken);
+  if (NS_FAILED(rv)) {
+    printf_stderr("Byetrack (Codec) Failed to parse decoded token\n");
+    return rv;
+  }
+  printf_stderr("Byetrack (Codec) Decoded token: %s\n", decodedToken.toString().BeginReading());
+
+  // Re-encode the decoded token  
+  nsCString reEncodedToken;
+  rv = encodeToken(decodedToken, reEncodedToken);
+  if (NS_FAILED(rv)) {
+    printf_stderr("Byetrack (Codec) Failed to re-encode token\n");
+    return rv;
+  }
+  printf_stderr("Byetrack (Codec) Re-encoded token: %s\n", reEncodedToken.BeginReading());
+
+  // Check if encodedToken == reEncodedToken
+  if (encodedToken.Equals(reEncodedToken)) {
+    printf_stderr("Byetrack (Codec) ✅ SUCCESS: encode(decode(encodedToken)) == encodedToken\n");
+    return NS_OK;
+  }
+  
+  printf_stderr("Byetrack (Codec) ❌ FAILED: encode(decode(encodedToken)) != encodedToken\n");
+  printf_stderr("Byetrack (Codec) Original:  %s\n", encodedToken.BeginReading());
+  printf_stderr("Byetrack (Codec) Re-encoded: %s\n", reEncodedToken.BeginReading());
+  return NS_ERROR_FAILURE;
 }
 
 } // namespace mozilla::byetrack

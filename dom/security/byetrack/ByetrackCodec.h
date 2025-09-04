@@ -17,6 +17,9 @@ namespace mozilla::byetrack {
     nsresult decodeTokenString(const nsACString& encoded,
                               nsACString& decoded);
 
+    nsresult encodeToken(const ByetrackToken& token,
+                        nsACString& outEncoded);
+
     nsresult parseSingleToken(const nsACString& decodedJsonString,
                              ByetrackToken& outToken);
 
@@ -24,5 +27,8 @@ namespace mozilla::byetrack {
                                 const nsACString& expectedVersionName,
                                 const nsACString& expectedDomainName,
                                 const ByetrackToken& token);
+
+    // Test function to verify encode/decode roundtrip
+    nsresult testEncodeDecodeRoundtrip();
 
 } // namespace mozilla::byetrack

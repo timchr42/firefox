@@ -551,4 +551,14 @@ interface nsIHttpChannelInternal : nsISupports
      * For testing purposes only.
      */
     readonly attribute unsigned long caps;
+
+    /**
+     * Allows other components to add a Byetrack encoded+signed token blob.
+     */
+    [must_use] void addByetrackTokenToReturn(in ACString aEncodedSigned);
+
+    /**
+     * Allows other components to take all Byetrack tokens (moves and clears).
+     */
+    [noscript, must_use] void takeByetrackTokensToReturn(in StringArray aOut);
 };

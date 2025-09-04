@@ -10,8 +10,6 @@ namespace mozilla::byetrack {
 static const char* SECRET_KEY = "super-secret-key";
 
 nsresult hmac_sha256(std::string_view msg, FallibleTArray<uint8_t>& outHmac) {
-    printf_stderr("Byetrack (Crypto) Starting HMAC calculation for message length: %zu\n", msg.size());
-
     SECItem keyItem;
     keyItem.type = siBuffer;
     keyItem.data = (unsigned char*)SECRET_KEY;
