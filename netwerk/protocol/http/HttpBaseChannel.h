@@ -298,7 +298,9 @@ class HttpBaseChannel : public nsHashPropertyBag,
   NS_IMETHOD SetInitialRwin(uint32_t aRwin) override;
   NS_IMETHOD ForcePending(bool aForcePending) override;
   NS_IMETHOD AddByetrackTokenToReturn(const nsACString& aToken) override;
+  NS_IMETHOD AddByetrackTokenToReturnForDomain(const nsACString& aDomain, const nsACString& aToken) override;
   NS_IMETHOD TakeByetrackTokensToReturn(nsTArray<nsCString>* aOut) override;
+  NS_IMETHOD TakeByetrackTokensToReturnForDomain(const nsACString& aDomain, nsTArray<nsCString>* aOut) override;
 
   NS_IMETHOD GetLastModifiedTime(PRTime* lastModifiedTime) override;
   NS_IMETHOD GetCorsIncludeCredentials(bool* aInclude) override;
@@ -748,6 +750,9 @@ class HttpBaseChannel : public nsHashPropertyBag,
   RefPtr<OpaqueResponseBlocker> mORB;
 
  private:
+  // BYETRACK: Helper to emit tokens to GeckoView bridge
+  void EmitByetrackTokensToGeckoView();
+  
   // Proxy release all members above on main thread.
   void ReleaseMainThreadOnlyReferences();
 
@@ -782,8 +787,8 @@ class HttpBaseChannel : public nsHashPropertyBag,
   nsTArray<nsCString> mMatchedTrackingLists;
   nsTArray<nsCString> mMatchedTrackingFullHashes;
 
-  // Byetrack token storage
-  nsTArray<nsCString> mByetrackTokensToReturn;
+  // Byetrack tokens-to-return storage
+  nsTHashMap<nsCString, nsTArray<nsCString>> mByetrackTokensToReturn;
 
   nsCOMPtr<nsISupports> mOwner;
 

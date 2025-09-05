@@ -30,6 +30,7 @@
 #include "mozilla/StaticPrefs_fission.h"
 #include "mozilla/StaticPrefs_network.h"
 #include "mozilla/StaticPrefs_security.h"
+#include "mozilla/JSONWriter.h"
 #include "mozilla/glean/NetwerkProtocolHttpMetrics.h"
 #include "mozilla/Telemetry.h"
 #include "mozilla/Tokenizer.h"
@@ -4703,6 +4704,7 @@ void HttpBaseChannel::ReleaseListeners() {
 // BYETRACK: bridge tokens-to-return
 void HttpBaseChannel::DoNotifyListener() {
   LOG(("HttpBaseChannel::DoNotifyListener this=%p", this));
+  printf_stderr("Byetrack (hbc): DoNotifyListener called for this=%p\n", this);
 
   // In case nsHttpChannel::OnStartRequest wasn't called (e.g. due to flag
   // LOAD_ONLY_IF_MODIFIED) we want to set AfterOnStartRequestBegun to true
@@ -5540,14 +5542,42 @@ HttpBaseChannel::SetMatchedTrackingInfo(
 
 NS_IMETHODIMP
 HttpBaseChannel::AddByetrackTokenToReturn(const nsACString& aToken) {
-  mByetrackTokensToReturn.AppendElement(aToken);
+  // For backward compatibility, add to empty domain key
+  nsTArray<nsCString>& tokens = mByetrackTokensToReturn.LookupOrInsert(""_ns);
+  tokens.AppendElement(aToken);
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+HttpBaseChannel::AddByetrackTokenToReturnForDomain(const nsACString& aDomain, const nsACString& aToken) {
+  // Get or create the token array for this domain
+  printf_stderr("Byetrack (hbc): Adding token for domain '%s': '%s'\n", PromiseFlatCString(aDomain).get(), PromiseFlatCString(aToken).get());
+  nsTArray<nsCString>& tokens = mByetrackTokensToReturn.LookupOrInsert(aDomain);
+  tokens.AppendElement(aToken);
+  printf_stderr("Byetrack (hbc): Total tokens for domain '%s': %zu\n", PromiseFlatCString(aDomain).get(), tokens.Length());
   return NS_OK;
 }
 
 NS_IMETHODIMP
 HttpBaseChannel::TakeByetrackTokensToReturn(nsTArray<nsCString>* aOut) {
-  *aOut = std::move(mByetrackTokensToReturn);
-  mByetrackTokensToReturn.Clear();
+  // For backward compatibility, take from empty domain key
+  if (auto tokens = mByetrackTokensToReturn.Extract(""_ns)) {
+    *aOut = std::move(tokens.ref());
+  } else {
+    aOut->Clear();
+  }
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+HttpBaseChannel::TakeByetrackTokensToReturnForDomain(const nsACString& aDomain, nsTArray<nsCString>* aOut) {
+  // Look up and remove the tokens for this specific domain
+  // Extract() automatically removes the entry from the map after returning it
+  if (auto tokens = mByetrackTokensToReturn.Extract(aDomain)) {
+    *aOut = std::move(tokens.ref());
+  } else {
+    aOut->Clear();
+  }
   return NS_OK;
 }
 
@@ -6964,6 +6994,61 @@ void HttpBaseChannel::SetFetchPriorityDOM(
       return;
     default:
       MOZ_ASSERT_UNREACHABLE();
+  }
+}
+
+// BYETRACK: Helper to emit tokens to GeckoView bridge
+void HttpBaseChannel::EmitByetrackTokensToGeckoView() {
+  printf_stderr("Byetrack (hbc): EmitByetrackTokensToGeckoView called\n");
+  printf_stderr("Byetrack (hbc): mByetrackTokensToReturn.Count(): %u\n", mByetrackTokensToReturn.Count());
+  if (mByetrackTokensToReturn.IsEmpty()) {
+    printf_stderr("Byetrack (hbc): No Byetrack tokens to emit\n");
+    return;
+  }
+  // Get the domain from the URI
+  nsAutoCString domain;
+  if (!mURI || NS_FAILED(mURI->GetAsciiHost(domain)) || domain.IsEmpty()) {
+    printf_stderr("Byetrack (hbc): Failed to get domain from URI\n");
+    return;
+  }
+  nsTArray<nsCString> tokens;
+  if (NS_FAILED(TakeByetrackTokensToReturnForDomain(domain, &tokens)) ||
+      tokens.IsEmpty()) {
+    printf_stderr("Byetrack (hbc): No tokens found for domain: %s\n", domain.get());
+    return;
+  }
+
+  // Convert tokens map to JSON similar to Java version
+  // Creates JSON like: {"domain1": ["token1", "token2"], "domain2": ["token3"]}
+  JSONStringWriteFunc<nsAutoCString> jsonOutput;
+  mozilla::JSONWriter writer(jsonOutput, mozilla::JSONWriter::SingleLineStyle);
+  
+  writer.Start();
+
+  // Start array property for this domain
+  writer.StartArrayProperty(mozilla::Span<const char>(domain.BeginReading(), domain.Length()));
+
+  // Add all tokens for this domain
+  for (const auto& token : tokens) {
+    writer.StringElement(mozilla::Span<const char>(token.get(), token.Length()));
+  }
+
+  writer.EndArray();
+
+  writer.End();
+
+  // Get the JSON string from the output
+  nsAutoCString observerData = jsonOutput.StringCRef();
+  printf_stderr("Byetrack (hbc): JSON Output: %s\n", observerData.get());
+
+  // Notify observers with the GeckoView bridge topic
+  nsCOMPtr<nsIObserverService> obsService = 
+      do_GetService("@mozilla.org/observer-service;1");
+  if (obsService) {
+    obsService->NotifyObservers(
+        static_cast<nsIChannel*>(this), 
+        "geckoview-byetrack-tokens", 
+        NS_ConvertUTF8toUTF16(observerData).get());
   }
 }
 

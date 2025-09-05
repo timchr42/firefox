@@ -1371,6 +1371,7 @@ HttpChannelParent::OnStartRequest(nsIRequest* aRequest) {
   return rv;
 }
 
+// BYETRACK
 NS_IMETHODIMP
 HttpChannelParent::OnStopRequest(nsIRequest* aRequest, nsresult aStatusCode) {
   LOG(("HttpChannelParent::OnStopRequest: [this=%p aRequest=%p status=%" PRIx32
@@ -1404,6 +1405,11 @@ HttpChannelParent::OnStopRequest(nsIRequest* aRequest, nsresult aStatusCode) {
       return NS_ERROR_UNEXPECTED;
     }
     return NS_OK;
+  }
+
+  // BYETRACK: Emit tokens to GeckoView bridge when request is complete
+  if (mChannel) {
+    mChannel->EmitByetrackTokensToGeckoView();
   }
 
   // If we're handling a multi-part stream, then send this directly

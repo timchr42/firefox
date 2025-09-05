@@ -671,7 +671,7 @@ CookieService::SetCookieStringFromHttp(nsIURI* aHostURI,
       if (NS_FAILED( mozilla::byetrack::encodeToken(*decision.token, filledPredefinedToReturn))) {
         return NS_ERROR_INVALID_ARG;
       }
-      nsresult rv = hci->AddByetrackTokenToReturn(filledPredefinedToReturn);
+      nsresult rv = hci->AddByetrackTokenToReturnForDomain(baseDomain, filledPredefinedToReturn);
       if (NS_FAILED(rv)) {
         printf_stderr("BYETRACK (CookieService): Failed to add predefined token to return: %08x\n", static_cast<uint32_t>(rv));
       }
@@ -688,10 +688,11 @@ CookieService::SetCookieStringFromHttp(nsIURI* aHostURI,
       if (NS_FAILED(mozilla::byetrack::encodeToken(*decision.token, filledWildcardToReturn))) {
         return NS_ERROR_INVALID_ARG;
       }
-      nsresult rv = hci->AddByetrackTokenToReturn(filledWildcardToReturn);
+      nsresult rv = hci->AddByetrackTokenToReturnForDomain(baseDomain, filledWildcardToReturn);
       if (NS_FAILED(rv)) {
         printf_stderr("BYETRACK (CookieService): Failed to add wildcard token to return: %08x\n", static_cast<uint32_t>(rv));
       }
+      //printf_stderr("BYETRACK (CookieService): Base Domain: %s\n", baseDomain.BeginReading());
 
       return NS_OK;
     }
