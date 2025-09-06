@@ -2880,6 +2880,23 @@ public class GeckoViewActivity extends AppCompatActivity
 
       return GeckoResult.fromValue("data:text/html," + createErrorPage(error.category, error.code));
     }
+
+    // BYETRACK
+    @Override
+    public void onByetrackFinalTokens(
+        final GeckoSession session, final String tokens, final String packageName) {
+      Log.d(LOGTAG, "BYETRACK: Received final tokens for package: " + packageName);
+      Log.d(LOGTAG, "BYETRACK: Tokens: " + tokens);
+      
+      Intent responseIntent = new Intent("org.mozilla.geckoview.CAPABILITY_TOKENS")
+          .addFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES);
+      responseIntent.setPackage(packageName); // Send only to requesting app
+
+      responseIntent.putExtra("final_tokens", tokens);
+      Log.d(LOGTAG, "Sent capability tokens to " + packageName);
+      GeckoViewActivity.this.sendBroadcast(responseIntent);
+      Log.d(LOGTAG, "BYETRACK: Sent broadcast intent with filled in capability tokens");
+    }
   }
 
   private class ExampleContentBlockingDelegate implements ContentBlocking.Delegate {

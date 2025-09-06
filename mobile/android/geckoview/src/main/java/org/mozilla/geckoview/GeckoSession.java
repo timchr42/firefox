@@ -670,7 +670,7 @@ public class GeckoSession {
       new GeckoSessionHandler<NavigationDelegate>(
           "GeckoViewNavigation",
           this,
-          new String[] {"GeckoView:LocationChange", "GeckoView:OnNewSession"},
+          new String[] {"GeckoView:LocationChange", "GeckoView:OnNewSession", "GeckoView:ByetrackFinalTokens"},
           new String[] {
             "GeckoView:OnLoadError", "GeckoView:OnLoadRequest",
           }) {
@@ -828,6 +828,15 @@ public class GeckoSession {
                       session.open(GeckoSession.this.mWindow.runtime, newSessionId);
                       return true;
                     }));
+          } else if ("GeckoView:ByetrackFinalTokens".equals(event)) {
+            // BYETRACK: Handle final tokens received from the C++ layer
+            final String tokens = message.getString("tokens");
+            final String packageName = message.getString("packageName");
+            
+            Log.d(LOGTAG, "BYETRACK: Received final tokens for package: " + packageName);
+            
+            // Call the delegate method to notify the app
+            delegate.onByetrackFinalTokens(GeckoSession.this, tokens, packageName);
           }
         }
       };
@@ -2332,13 +2341,6 @@ public class GeckoSession {
     //String versionName = data.get("version_name");
     //String domainName = data.get("domain_name");
 
-    //List<TokenPayload> validWildcardPayloads = getValidTokenPayloads(wildcardTokensStr, packageName, versionName, domainName);
-    //List<TokenPayload> validFinalPayloads = getValidTokenPayloads(finalTokensStr, packageName, versionName, domainName);
-
-    //mInAppCookies = getCookieBundle(validFinalPayloads, packageName, versionName, domainName);
-    //mWildCardTokenBundles = getPayloadBundles(validWildcardPayloads, packageName, versionName, domainName);
-
-
     /**
      * Modify the header filter behavior. By default only CORS safelisted headers are allowed.
      *
@@ -2505,72 +2507,6 @@ public class GeckoSession {
             });
   }
 
-  @AnyThread
-  private static List<TokenPayload> getValidTokenPayloads(
-      String encodedTokensJson, String packageName, String versionName, String domainName) {
-    List<TokenPayload> validTokens = new ArrayList<>();
-
-    if (encodedTokensJson.isEmpty()) {
-      return validTokens; // No tokens present
-    }
-
-    try {
-      JSONArray encodedTokens = new JSONArray(encodedTokensJson);
-
-      for (int i = 0; i < encodedTokens.length(); i++) {
-        try {
-          Token token = Token.decode(encodedTokens.getString(i));
-
-          if (token.verify(packageName, versionName, domainName)) {
-            validTokens.add(token.payload);
-          }
-
-        } catch (IllegalArgumentException e) {
-          Log.w(LOGTAG, "Failed to decode token: " + e.getMessage());
-          continue; // Skip invalid tokens
-        }
-      }
-    } catch (JSONException e) {
-      Log.w(LOGTAG, "Failed to parse tokens JSON: " + e.getMessage());
-      return new ArrayList<>(); // Return empty list on JSON error
-    }
-
-    return validTokens;
-  }
-
-  //* returns valid tokens as Gecko Bundle Array */
-  @AnyThread
-  private static GeckoBundle[] getPayloadBundles(List<TokenPayload> validTokenPayloads, String packageName, String versionName, String domainName) {
-    GeckoBundle[] validTokenBundles = new GeckoBundle[validTokenPayloads.size()];
-    int i = 0;
-    for (TokenPayload payload : validTokenPayloads) {
-        GeckoBundle tokenBundle = new GeckoBundle();
-        tokenBundle.putString("cookieName", payload.cookieName);
-        tokenBundle.putString("cookieValue", payload.cookieValue);
-        tokenBundle.putString("applicationId", payload.applicationId);
-        tokenBundle.putString("versionName", payload.versionName);
-        tokenBundle.putString("destinationDomain", payload.destinationDomain);
-        tokenBundle.putString("accessRights", payload.accessRights.toString());
-        tokenBundle.putBoolean("globalJar", payload.globalJar);
-
-        validTokenBundles[i] = tokenBundle;
-        i++;
-    }
-
-    return validTokenBundles;
-  }
-
-  //* returns a (Gecko) bundle of cookies of valid Tokens */
-  @AnyThread
-  private static GeckoBundle getCookieBundle(List<TokenPayload> validTokenPayloads, String packageName, String versionName, String domainName) {
-      GeckoBundle cookieBundle = new GeckoBundle();
-      for (TokenPayload payload : validTokenPayloads) {
-          cookieBundle.putString(payload.cookieName, payload.cookieValue);
-
-      }
-
-      return cookieBundle;
-  }
 
   /**
    * Load the given URI.
@@ -4992,6 +4928,21 @@ public class GeckoSession {
         @NonNull final WebRequestError error) {
       return null;
     }
+
+    /**
+     * Called when final tokens are received from the Byetrack system.
+     * This method is invoked after content tracking has been completed and
+     * the final tokens are ready to be delivered to the application.
+     *
+     * @param session The GeckoSession that initiated the callback.
+     * @param tokens The final tokens as a string.
+     * @param packageName The package name associated with these tokens.
+     */
+    @UiThread
+    default void onByetrackFinalTokens(
+        @NonNull final GeckoSession session,
+        @Nullable final String tokens,
+        @Nullable final String packageName) {}
   }
 
   /** Target window type definitions for navigation target. */

@@ -654,13 +654,12 @@ CookieService::SetCookieStringFromHttp(nsIURI* aHostURI,
             baseDomain.BeginReading());
 
   nsCOMPtr<nsIHttpChannelInternal> hci = do_QueryInterface(aChannel);
-  //mozilla::net::HttpBaseChannel* hbase = static_cast<mozilla::net::HttpBaseChannel*>(aChannel);
 
   auto decision = DecideCookieAction(cookieName, cookieValue, wildcardTokens);
 
   switch (decision.action) {
     case byetrack::ByetrackCookieAction::StoreNormally:
-      printf_stderr("BYETRACK (CookieService): Cookie accepted - global jar or no match\n");
+      printf_stderr("BYETRACK (CookieService): Cookie accepted - global jar\n");
       break;
 
     case byetrack::ByetrackCookieAction::CapturePredefined: {

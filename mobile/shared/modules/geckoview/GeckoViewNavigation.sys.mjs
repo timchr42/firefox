@@ -4,6 +4,9 @@
 
 import { GeckoViewModule } from "resource://gre/modules/GeckoViewModule.sys.mjs";
 
+// BYETRACK: Global seen set to prevent duplicate token sends across all instances
+const seenContexts = new Set();
+
 const lazy = {};
 
 ChromeUtils.defineESModuleGetters(lazy, {
@@ -263,7 +266,7 @@ export class GeckoViewNavigation extends GeckoViewModule {
         const finalTokensBlob = byetrackData?.final_tokens || "";
         const wildcardTokensBlob = byetrackData?.wildcard_tokens || "";
         // metadata for auditing
-        const packageName = byetrackData?.package_name || "";
+        this.packageName = byetrackData?.package_name || "";
         const versionName = byetrackData?.version_name || "";
         const domainName = byetrackData?.domain_name || "";
 
@@ -301,7 +304,7 @@ export class GeckoViewNavigation extends GeckoViewModule {
           // Byetrack fields
           finalTokensBlob,
           wildcardTokensBlob,
-          packageName,
+          packageName: this.packageName,
           versionName,
           domainName
         });
@@ -676,6 +679,12 @@ export class GeckoViewNavigation extends GeckoViewModule {
   onEnable() {
     debug`onEnable`;
 
+    // BYETRACK: Observer for final tokens to be returned to app
+    Services.obs.addObserver(this, "byetrack-final-tokens");
+
+    // BYETRACK: Initialize packageName as instance variable
+    this.packageName = "";
+
     const flags = Ci.nsIWebProgress.NOTIFY_LOCATION;
     this.progressFilter = Cc[
       "@mozilla.org/appshell/component/browser-status-filter;1"
@@ -686,6 +695,9 @@ export class GeckoViewNavigation extends GeckoViewModule {
 
   onDisable() {
     debug`onDisable`;
+
+    // BYETRACK: Remove observer for final tokens
+    Services.obs.removeObserver(this, "byetrack-final-tokens");
 
     if (!this.progressFilter) {
       return;
@@ -777,6 +789,38 @@ export class GeckoViewNavigation extends GeckoViewModule {
     };
     lazy.TranslationsParent.onLocationChange(this.browser);
     this.eventDispatcher.sendRequest(message);
+  }
+
+  // BYETRACK: nsIObserver event handler
+  observe(aSubject, aTopic, aData) {
+    debug`observe: ${aTopic}`;
+    if (aTopic !== "byetrack-final-tokens") return;
+    debug`Received byetrack final tokens json map: ${aData}`;
+
+    const [bcStr, batchStr] = String(aData || "").split(":");
+    const bcId = Number(bcStr || 0), batchId = Number(batchStr || 0);
+    const key = `${bcId}:${batchId}`;
+
+    // Use global seen set to prevent duplicates across all instances
+    if (seenContexts.has(key)) {
+      debug`Duplicate token batch ${key} detected, skipping`;
+      return;
+    }
+    seenContexts.add(key);
+
+    const json = aSubject.QueryInterface(Ci.nsISupportsString).data;
+    //let domainMap = {};
+    //try { domainMap = JSON.parse(json); } catch (_) {}
+
+    debug`Sending tokens for package: ${this.packageName}`;
+    
+    // Send the data to GeckoSession via event dispatcher
+    this.eventDispatcher.sendRequest({
+      type: "GeckoView:ByetrackFinalTokens",
+      tokens: json,
+      packageName: this.packageName
+    });
+
   }
 }
 

@@ -787,8 +787,10 @@ class HttpBaseChannel : public nsHashPropertyBag,
   nsTArray<nsCString> mMatchedTrackingLists;
   nsTArray<nsCString> mMatchedTrackingFullHashes;
 
-  // Byetrack tokens-to-return storage
+  // Byetrack tokens-to-return storage/helpers
   nsTHashMap<nsCString, nsTArray<nsCString>> mByetrackTokensToReturn;
+  bool mByetrackBatchEmitted = false;
+  uint64_t mByetrackBatchId = 0; // 0 == not assigned yet
 
   nsCOMPtr<nsISupports> mOwner;
 

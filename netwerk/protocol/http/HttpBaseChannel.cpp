@@ -90,11 +90,13 @@
 #include "nsISeekableStream.h"
 #include "nsIStorageStream.h"
 #include "nsIStreamConverterService.h"
+#include "nsISupportsPrimitives.h"
 #include "nsITimedChannel.h"
 #include "nsITransportSecurityInfo.h"
 #include "nsIURIMutator.h"
 #include "nsMimeTypes.h"
 #include "nsNetCID.h"
+#include "nsXPCOMCID.h"
 #include "nsNetUtil.h"
 #include "nsPIDOMWindow.h"
 #include "nsProxyRelease.h"
@@ -114,6 +116,9 @@
 #include "nsQueryObject.h"
 
 using mozilla::dom::ForceMediaDocument;
+
+// Byetrack batch counter for unique batch IDs
+static mozilla::Atomic<uint64_t, mozilla::Relaxed> sByetrackBatchCtr{1};
 
 using mozilla::dom::RequestMode;
 
@@ -7000,11 +7005,16 @@ void HttpBaseChannel::SetFetchPriorityDOM(
 // BYETRACK: Helper to emit tokens to GeckoView bridge
 void HttpBaseChannel::EmitByetrackTokensToGeckoView() {
   printf_stderr("Byetrack (hbc): EmitByetrackTokensToGeckoView called\n");
-  printf_stderr("Byetrack (hbc): mByetrackTokensToReturn.Count(): %u\n", mByetrackTokensToReturn.Count());
-  if (mByetrackTokensToReturn.IsEmpty()) {
-    printf_stderr("Byetrack (hbc): No Byetrack tokens to emit\n");
+
+  if (mByetrackBatchEmitted) {
+    printf_stderr("Byetrack(hbc): already emitted (batchId=%" PRIu64 ")\n", mByetrackBatchId);
     return;
   }
+  if (!mByetrackTokensToReturn.Count()) {
+    printf_stderr("Byetrack(hbc): no tokens in map; skipping emit\n");
+    return;
+  }
+
   // Get the domain from the URI
   nsAutoCString domain;
   if (!mURI || NS_FAILED(mURI->GetAsciiHost(domain)) || domain.IsEmpty()) {
@@ -7034,22 +7044,51 @@ void HttpBaseChannel::EmitByetrackTokensToGeckoView() {
   }
 
   writer.EndArray();
-
   writer.End();
 
-  // Get the JSON string from the output
-  nsAutoCString observerData = jsonOutput.StringCRef();
-  printf_stderr("Byetrack (hbc): JSON Output: %s\n", observerData.get());
+  if (jsonOutput.StringCRef().IsEmpty()) {
+    printf_stderr("Byetrack(hbc): JSON empty; nothing to emit\n");
+    return;
+  }
+
+  RefPtr<mozilla::dom::BrowsingContext> ctx;
+  if (NS_FAILED(mLoadInfo->GetBrowsingContext(getter_AddRefs(ctx)))) {
+    printf_stderr("Byetrack(hbc): missing BrowsingContext; abort emit\n");
+    return;
+  }
+  uint64_t bcId = ctx->Id();
+
+  // Assign unique batchId and mark emitted (duplicate guard)
+  if (mByetrackBatchId == 0) {
+    mByetrackBatchId = sByetrackBatchCtr++;
+  }
+  mByetrackBatchEmitted = true;
+
+  nsCOMPtr<nsISupportsString> subjectJson = do_CreateInstance(NS_SUPPORTS_STRING_CONTRACTID);
+  if (!subjectJson) {
+    printf_stderr("Byetrack (hbc): failed to create nsISupportsString for JSON\n");
+    return;
+  }
+  subjectJson->SetData(NS_ConvertUTF8toUTF16(jsonOutput.StringCRef()));
+  printf_stderr("Byetrack (hbc): JSON Output: %s\n", jsonOutput.StringCRef().get());
+
+  // DATA: "bcId:batchId"
+  nsAutoCString dataStr;
+  dataStr.AppendInt(bcId);
+  dataStr.Append(':');
+  dataStr.AppendInt(mByetrackBatchId);
 
   // Notify observers with the GeckoView bridge topic
-  nsCOMPtr<nsIObserverService> obsService = 
+  nsCOMPtr<nsIObserverService> obsService =
       do_GetService("@mozilla.org/observer-service;1");
   if (obsService) {
     obsService->NotifyObservers(
-        static_cast<nsIChannel*>(this), 
-        "geckoview-byetrack-tokens", 
-        NS_ConvertUTF8toUTF16(observerData).get());
+        subjectJson,
+        "byetrack-final-tokens",
+        NS_ConvertUTF8toUTF16(dataStr).get());
   }
+
+  mByetrackTokensToReturn.Clear();
 }
 
 }  // namespace net

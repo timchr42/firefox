@@ -39,10 +39,13 @@ export class RemoteWebNavigation {
 
   maybeCancelContentJSExecution(aNavigationType, aOptions = {}) {
     const epoch = this._cancelContentJSEpoch++;
-    this._browser.frameLoader.remoteTab.maybeCancelContentJSExecution(
-      aNavigationType,
-      { ...aOptions, epoch }
-    );
+    const remoteTab = this._browser.frameLoader?.remoteTab;
+    if (remoteTab) {
+      remoteTab.maybeCancelContentJSExecution(
+        aNavigationType,
+        { ...aOptions, epoch }
+      );
+    }
     return epoch;
   }
 

@@ -151,7 +151,7 @@ var ModuleManager = {
   },
 
   get messageManager() {
-    return this._browser.messageManager;
+    return this._browser?.messageManager;
   },
 
   get eventDispatcher() {
@@ -277,7 +277,9 @@ var ModuleManager = {
         }
 
         // Notify child of the transfer.
-        this._browser.messageManager.sendAsyncMessage(aEvent);
+        if (this._browser.messageManager) {
+          this._browser.messageManager.sendAsyncMessage(aEvent);
+        }
         break;
       }
 
@@ -432,8 +434,11 @@ class ModuleInfo {
     if (this._impl) {
       this._impl.onLoadContentModule();
     }
-    this._manager.messageManager.loadFrameScript(aPhase.frameScript, true);
-    this._contentModuleLoaded = true;
+    const messageManager = this._manager.messageManager;
+    if (messageManager) {
+      messageManager.loadFrameScript(aPhase.frameScript, true);
+      this._contentModuleLoaded = true;
+    }
   }
 
   get manager() {
@@ -505,13 +510,16 @@ class ModuleInfo {
   }
 
   _updateContentModuleState() {
-    this._manager.messageManager.sendAsyncMessage(
-      "GeckoView:UpdateModuleState",
-      {
-        module: this._name,
-        enabled: this.enabled,
-      }
-    );
+    const messageManager = this._manager.messageManager;
+    if (messageManager) {
+      messageManager.sendAsyncMessage(
+        "GeckoView:UpdateModuleState",
+        {
+          module: this._name,
+          enabled: this.enabled,
+        }
+      );
+    }
   }
 }
 
