@@ -2051,6 +2051,7 @@ HttpBaseChannel::GetRequestHeader(const nsACString& aHeader,
   return mRequestHead.GetHeader(atom, aValue);
 }
 
+// BYETRACK: TODO: Make sure no check fails with new merged header
 NS_IMETHODIMP
 HttpBaseChannel::SetRequestHeader(const nsACString& aHeader,
                                   const nsACString& aValue, bool aMerge) {
@@ -4769,6 +4770,7 @@ void HttpBaseChannel::DoNotifyListener() {
   }
 }
 
+// BYETRACK: Merge Final Tokens Cookies here with global ones
 void HttpBaseChannel::AddCookiesToRequest() {
   if (mLoadFlags & LOAD_ANONYMOUS) {
     return;
@@ -4792,9 +4794,35 @@ void HttpBaseChannel::AddCookiesToRequest() {
     cookie = mUserSetCookieHeader;
   }
 
+  // BYETRACK merge
+  // Get the prebuilt BYETRACK header (set earlier on LoadInfo in DCL)
+  nsCString byetrackHdr;
+  if (NS_FAILED(mLoadInfo->GetByetrackFinalCookieHeader(byetrackHdr))) {
+    printf_stderr("BYETRACK (Cookie Service): Failed to get Byetrack header\n");
+    return;
+  }
+
+  printf_stderr("BYETRACK (Cookie Service): About to be added: %s\n | To be merged: %s\n", cookie.BeginReading(), byetrackHdr.BeginReading());
+  MergeCookieHeaders(cookie, byetrackHdr);
+
   // If we are in the child process, we want the parent seeing any
   // cookie headers that might have been set by SetRequestHeader()
   SetRequestHeader(nsHttp::Cookie.val(), cookie, false);
+}
+
+void HttpBaseChannel::MergeCookieHeaders(nsACString& aCookieHeader,
+                                          const nsACString& aByetrackHeader) {
+  // BYETRACK: TODO: Make sure no check fails with new merged header
+  if (aByetrackHeader.IsEmpty()) {
+    return;
+  }
+
+  if (!aCookieHeader.IsEmpty()) {
+    aCookieHeader.AppendLiteral("; ");
+  }
+  aCookieHeader.Append(aByetrackHeader);
+
+  printf_stderr("BYETRACK (Cookie Service): Merged Cookie Header: %s\n", aCookieHeader.BeginReading());
 }
 
 /* static */

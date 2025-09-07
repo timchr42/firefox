@@ -639,6 +639,8 @@ class HttpBaseChannel : public nsHashPropertyBag,
   [[nodiscard]] virtual nsresult SetupReplacementChannel(
       nsIURI*, nsIChannel*, bool preserveMethod, uint32_t redirectFlags);
 
+  void MergeCookieHeaders(nsACString& aCookieHeader, const nsACString& aByetrackHeader);
+
   bool IsNewChannelSameOrigin(nsIChannel* aNewChannel);
 
   // WHATWG Fetch Standard 4.4. HTTP-redirect fetch, step 10

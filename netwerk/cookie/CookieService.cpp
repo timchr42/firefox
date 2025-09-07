@@ -426,6 +426,8 @@ CookieService::GetCookieStringFromHttp(nsIURI* aHostURI, nsIChannel* aChannel,
 
   CookieCommons::ComposeCookieString(foundCookieList, aCookieString);
 
+  printf_stderr("Cookie string composed: %s\n", aCookieString.BeginReading());
+
   if (!aCookieString.IsEmpty()) {
     COOKIE_LOGSUCCESS(GET_COOKIE, aHostURI, aCookieString, nullptr, false);
   }
