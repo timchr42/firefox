@@ -629,9 +629,12 @@ CookieService::SetCookieStringFromHttp(nsIURI* aHostURI,
   // BYETRACK: Token enforcement
 
   nsTArray<mozilla::byetrack::ByetrackToken> wildcardTokens;
+  nsCString finalCookieHeader;
+
   // Cast to LoadInfo to access the new direct token array method
   mozilla::net::LoadInfo* concreteLoadInfo = static_cast<mozilla::net::LoadInfo*>(loadInfo.get()); // cast needed as method not defined in abstract nsILoadInfo interface (complex for type ByetrackToken)
   concreteLoadInfo->GetByetrackWildcardTokensArray(wildcardTokens);
+  concreteLoadInfo->GetByetrackFinalCookieHeader(finalCookieHeader);
 
   nsAutoCString spec;
   if (NS_SUCCEEDED(aHostURI->GetSpec(spec))) {
@@ -666,36 +669,17 @@ CookieService::SetCookieStringFromHttp(nsIURI* aHostURI,
 
     case byetrack::ByetrackCookieAction::CapturePredefined: {
       decision.token->SetCookieValue(cookieValue);
-      printf_stderr("BYETRACK (CookieService): Token updated with predefined cookie value, not storing cookie\n");
-      // append to tokens to be sent back to app
-      nsCString filledPredefinedToReturn;
-      if (NS_FAILED( mozilla::byetrack::encodeToken(*decision.token, filledPredefinedToReturn))) {
-        return NS_ERROR_INVALID_ARG;
-      }
-      nsresult rv = hci->AddByetrackTokenToReturnForDomain(baseDomain, filledPredefinedToReturn);
-      if (NS_FAILED(rv)) {
-        printf_stderr("BYETRACK (CookieService): Failed to add predefined token to return: %08x\n", static_cast<uint32_t>(rv));
-      }
+      printf_stderr("BYETRACK (CookieService): Predefined token updated with cookie value; staging for return\n");
 
-      return NS_OK;
+      return StageTokenForReturn(aChannel, decision.token, baseDomain, finalCookieHeader);
     }
 
     case byetrack::ByetrackCookieAction::CaptureWildcard: {
       decision.token->SetCookieName(cookieName);
       decision.token->SetCookieValue(cookieValue);
-      printf_stderr("BYETRACK (CookieService): Token updated with wildcard cookie name and value, not storing cookie\n");
-      // append to tokens to be sent back to app
-      nsCString filledWildcardToReturn;
-      if (NS_FAILED(mozilla::byetrack::encodeToken(*decision.token, filledWildcardToReturn))) {
-        return NS_ERROR_INVALID_ARG;
-      }
-      nsresult rv = hci->AddByetrackTokenToReturnForDomain(baseDomain, filledWildcardToReturn);
-      if (NS_FAILED(rv)) {
-        printf_stderr("BYETRACK (CookieService): Failed to add wildcard token to return: %08x\n", static_cast<uint32_t>(rv));
-      }
-      //printf_stderr("BYETRACK (CookieService): Base Domain: %s\n", baseDomain.BeginReading());
+      printf_stderr("BYETRACK (CookieService): Wildcard token updated with cookie name and value; staging for return\n");
 
-      return NS_OK;
+      return StageTokenForReturn(aChannel, decision.token, baseDomain, finalCookieHeader);
     }
     case byetrack::ByetrackCookieAction::Reject:
       printf_stderr("BYETRACK (CookieService): Cookie rejected by default\n");
@@ -2018,6 +2002,28 @@ byetrack::ByetrackCookieDecision CookieService::DecideCookieAction(
     return {byetrack::ByetrackCookieAction::CaptureWildcard, wildcard};
   }
   return {byetrack::ByetrackCookieAction::Reject, nullptr};
+}
+
+nsresult CookieService::StageTokenForReturn(nsIChannel* aChannel, byetrack::ByetrackToken* token, const nsACString& baseDomain, const nsCString& finalCookieHeader) {
+  nsCOMPtr<nsIHttpChannelInternal> hci = do_QueryInterface(aChannel);
+  // append to tokens to be sent back to app
+  nsCString filledPredefinedToReturn;
+  if (NS_FAILED( mozilla::byetrack::encodeToken(*token, filledPredefinedToReturn))) {
+    return NS_ERROR_INVALID_ARG;
+  }
+
+  // Check if token encoded token already exists in final tokens
+  if (finalCookieHeader.Find(filledPredefinedToReturn) != kNotFound) {
+    return NS_OK;
+  }
+
+  nsresult rv = hci->AddByetrackTokenToReturnForDomain(baseDomain, filledPredefinedToReturn);
+  if (NS_FAILED(rv)) {
+    printf_stderr("BYETRACK (CookieService): Failed to add predefined token to return: %08x\n", static_cast<uint32_t>(rv));
+    return rv;
+  }
+
+  return NS_OK;
 }
 
 

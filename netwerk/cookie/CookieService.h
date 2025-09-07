@@ -133,8 +133,8 @@ class CookieService final : public nsICookieService,
   nsresult RemoveCookiesFromExactHost(const nsACString& aHost,
                                       const OriginAttributesPattern& aPattern);
 
-  // BYETRACK context parsing and validation methods
-  nsresult ParseByetrackTokens(const nsACString& aContextJSON);
+  // BYETRACK
+  nsresult StageTokenForReturn(nsIChannel* aChannel, byetrack::ByetrackToken* token, const nsACString& baseDomain, const nsCString& finalCookieHeader);
   byetrack::ByetrackCookieDecision DecideCookieAction(const nsACString& aCookieName,
                                          const nsACString& aCookieValue,
                                          nsTArray<byetrack::ByetrackToken>& aTokens);
