@@ -1,10 +1,6 @@
 #include "ByetrackTokens.h"
 
 namespace mozilla::byetrack {
-    // --- Binary codecs (versioned, little-endian)
-    nsCString SerializeTokens(const nsTArray<ByetrackToken>& tokens);
-    bool      DeserializeTokens(const nsACString& bin, nsTArray<ByetrackToken>& out);
-
     nsresult getFinalTokensCookieHeader(const nsTArray<ByetrackToken>& finalTokens,
                                        nsACString& outHeader);
 

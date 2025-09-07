@@ -561,16 +561,6 @@ TRRLoadInfo::SetByetrackFinalCookieHeader(const nsACString& aByetrackFinalCookie
 }
 
 NS_IMETHODIMP
-TRRLoadInfo::GetByetrackWildcardTokens(nsACString& aByetrackWildcardTokens) {
-  return NS_ERROR_NOT_IMPLEMENTED;
-}
-
-NS_IMETHODIMP
-TRRLoadInfo::SetByetrackWildcardTokens(const nsACString& aByetrackWildcardTokens) {
-  return NS_ERROR_NOT_IMPLEMENTED;
-}
-
-NS_IMETHODIMP
 TRRLoadInfo::GetByetrackWildcardTokensArray(nsTArray<mozilla::byetrack::ByetrackToken>& aTokens) {
   return NS_ERROR_NOT_IMPLEMENTED;
 }

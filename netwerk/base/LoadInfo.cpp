@@ -1022,21 +1022,7 @@ LoadInfo::SetByetrackFinalCookieHeader(const nsACString& aByetrackFinalCookieHea
   return NS_OK;
 }
 
-NS_IMETHODIMP
-LoadInfo::GetByetrackWildcardTokens(nsACString& aByetrackWildcardTokens) {
-  // Serialize the token array to string for backward compatibility
-  aByetrackWildcardTokens = mozilla::byetrack::SerializeTokens(mByetrackWildcardTokens);
-  return NS_OK;
-}
-
-NS_IMETHODIMP
-LoadInfo::SetByetrackWildcardTokens(const nsACString& aByetrackWildcardTokens) {
-  // Deserialize the string to token array for new internal storage
-  mozilla::byetrack::DeserializeTokens(aByetrackWildcardTokens, mByetrackWildcardTokens);
-  return NS_OK;
-}
-
-// New direct token array access methods
+// Direct Access to tokens, already parsed validated etc.
 NS_IMETHODIMP
 LoadInfo::GetByetrackWildcardTokensArray(nsTArray<mozilla::byetrack::ByetrackToken>& aTokens) {
   aTokens = mByetrackWildcardTokens.Clone();

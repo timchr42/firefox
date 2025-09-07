@@ -558,9 +558,9 @@ nsresult LoadInfoToLoadInfoArgs(nsILoadInfo* aLoadInfo,
 
   // BYETRACK: Get new separate attributes (when available after IDL compilation)
   nsCString byetrackFinalCookieHeader;
-  nsCString byetrackWildcardTokens;
+  //nsCString byetrackWildcardTokens;
   aLoadInfo->GetByetrackFinalCookieHeader(byetrackFinalCookieHeader);
-  aLoadInfo->GetByetrackWildcardTokens(byetrackWildcardTokens);
+  //aLoadInfo->GetByetrackWildcardTokens(byetrackWildcardTokens);
 
   *outLoadInfoArgs = LoadInfoArgs(
       loadingPrincipalInfo, triggeringPrincipalInfo, principalToInheritInfo,
@@ -618,8 +618,8 @@ nsresult LoadInfoToLoadInfoArgs(nsILoadInfo* aLoadInfo,
       unstrippedURI, interceptionInfoArg, aLoadInfo->GetIsNewWindowTarget(),
       aLoadInfo->GetUserNavigationInvolvement(),
       aLoadInfo->GetContainerFeaturePolicyInfo(), {},
-      byetrackFinalCookieHeader,  // BYETRACK
-      byetrackWildcardTokens);  // BYETRACK
+      byetrackFinalCookieHeader  // BYETRACK
+      /*byetrackWildcardTokens*/);  // BYETRACK
 
   return NS_OK;
 }
@@ -909,9 +909,9 @@ nsresult LoadInfoArgsToLoadInfo(const LoadInfoArgs& loadInfoArgs,
   if (!loadInfoArgs.byetrackFinalCookieHeader().IsEmpty()) {
     loadInfo->SetByetrackFinalCookieHeader(loadInfoArgs.byetrackFinalCookieHeader());
   }
-  if (!loadInfoArgs.byetrackWildcardTokens().IsEmpty()) {
-    loadInfo->SetByetrackWildcardTokens(loadInfoArgs.byetrackWildcardTokens());
-  }
+  //if (!loadInfoArgs.byetrackWildcardTokens().IsEmpty()) {
+  //  loadInfo->SetByetrackWildcardTokens(loadInfoArgs.byetrackWildcardTokens());
+  //}
 
   loadInfo.forget(outLoadInfo);
   return NS_OK;

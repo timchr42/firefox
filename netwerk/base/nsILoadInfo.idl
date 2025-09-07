@@ -1712,9 +1712,6 @@ interface nsILoadInfo : nsISupports
   attribute uint8_t userNavigationInvolvement;
 
   /**
-   * BYETRACK: ;
-
-  /**
    * BYETRACK: Final cookie header string for app cookies.
    */
   attribute ACString byetrackFinalCookieHeader;
@@ -1722,7 +1719,7 @@ interface nsILoadInfo : nsISupports
   /**
    * BYETRACK: Compiled JSON string containing wildcard tokens (allows directly loading Tokens)
    */
-  attribute ACString byetrackWildcardTokens;
+  //attribute ACString byetrackWildcardTokens;
 
 %{C++
     mozilla::dom::UserNavigationInvolvement GetUserNavigationInvolvement() {
