@@ -266,9 +266,6 @@ public final class GeckoRuntime implements Parcelable {
   private final CrashPullController.CrashPullProxy mCrashPullProxy;
   private final GeckoScreenChangeListener mScreenChangeListener;
 
-  // ADDED: PolicyManager
-  private PolicyManager mPolicyManager;
-
   private GeckoRuntime() {
     mWebExtensionController = new WebExtensionController(this);
     mContentBlockingController = new ContentBlockingController();
@@ -457,10 +454,10 @@ public final class GeckoRuntime implements Parcelable {
       Log.d(LOGTAG, "init");
     }
 
-    int flags = 0;
 
     // Initialize PolicyManager with the provided context
     mPolicyManager = new PolicyManager(context);
+    int flags = 0;
 
     if (settings.getPauseForDebuggerEnabled()) {
       flags |= GeckoThread.FLAG_DEBUGGING;
@@ -660,16 +657,6 @@ public final class GeckoRuntime implements Parcelable {
   @UiThread
   public @NonNull ContentBlockingController getContentBlockingController() {
     return mContentBlockingController;
-  }
-
-  /**
-   * Get the policy manager for this runtime.
-   *
-   * @return An instance of {@link PolicyManager}.
-   */
-  @UiThread
-  public @NonNull PolicyManager getPolicyManager() {
-    return mPolicyManager;
   }
 
   /**

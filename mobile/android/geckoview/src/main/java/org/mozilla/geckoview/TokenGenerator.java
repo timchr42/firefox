@@ -16,12 +16,8 @@ import org.mozilla.gecko.util.TokenPayload;
  * Controls capability tokens for policy-based access control.
  * This implementation uses the Token structure with TokenPayload.
  */
-public class TokenGenerator {
+public final class TokenGenerator {
     private static final String LOGTAG = "TokenGenerator";
-
-    public TokenGenerator() {
-        Log.d(LOGTAG, "TokenGenerator initialized");
-    }
 
     /**
      * Creates capability tokens based on the policy for a specific package.
@@ -32,7 +28,7 @@ public class TokenGenerator {
      * @param versionName The version of the package
      * @return A map of domain -> list of tokens for that domain
      */
-    public Map<String, List<String>> generateCapabilityTokens(JSONObject policy, String packageName, String versionName) {
+    public static String generateCapabilityTokens(JSONObject policy, String packageName, String versionName) {
         Map<String, List<String>> tokensByDomain = new HashMap<>();
 
         try {
@@ -77,13 +73,14 @@ public class TokenGenerator {
             Log.e(LOGTAG, "Failed to generate capability tokens for " + packageName, e);
         }
 
-        return tokensByDomain;
+        logTokens(tokensByDomain, packageName);
+        return tokensMapToJsonString(tokensByDomain);
     }
 
     /**
      * Process predefined domains where cookie names are specified
      */
-    private void processPredefined(JSONObject domains, boolean globalJar, String packageName, String versionName, TokenPayload.AccessRights rights, Map<String, List<String>> tokensByDomain) {
+    private static void processPredefined(JSONObject domains, boolean globalJar, String packageName, String versionName, TokenPayload.AccessRights rights, Map<String, List<String>> tokensByDomain) {
         try {
             Iterator<String> domainKeys = domains.keys();
             while (domainKeys.hasNext()) {
@@ -110,7 +107,7 @@ public class TokenGenerator {
     /**
      * Process wildcard domains where cookie names are wildcards
      */
-    private void processWildcard(JSONArray domains, boolean globalJar, String packageName, String versionName, TokenPayload.AccessRights rights, Map<String, List<String>> tokensByDomain) {
+    private static void processWildcard(JSONArray domains, boolean globalJar, String packageName, String versionName, TokenPayload.AccessRights rights, Map<String, List<String>> tokensByDomain) {
         try {
             for (int i = 0; i < domains.length(); i++) {
                 String domain = domains.getString(i);
@@ -131,7 +128,7 @@ public class TokenGenerator {
     /**
      * Generate a single capability token for a specific domain and cookie
      */
-    private String generateSingleToken(String domain, String cookieName, String cookieValue,
+    private static String generateSingleToken(String domain, String cookieName, String cookieValue,
                                      boolean globalJar, String packageName, String versionName, TokenPayload.AccessRights rights) {
         try {
             // Create token payload using the new TokenPayload structure
@@ -161,4 +158,34 @@ public class TokenGenerator {
         }
     }
 
+    private static String tokensMapToJsonString(Map<String, List<String>> tokensByDomain) {
+        try {
+            JSONObject json = new JSONObject();
+            for (Map.Entry<String, List<String>> entry : tokensByDomain.entrySet()) {
+                String domain = entry.getKey();
+                List<String> tokens = entry.getValue();
+                JSONArray tokenArray = new JSONArray(tokens); // for (String token : tokens) { tokenArray.put(token); }
+                json.put(domain, tokenArray);
+            }
+            return json.toString();
+        } catch (Exception e) {
+            Log.e(LOGTAG, "Failed to convert tokens map to JSON", e);
+            return "";
+        }
+    }
+
+    private static void logTokens(Map<String, List<String>> capabilityTokensByDomain, String packageName) {
+        for (Map.Entry<String, List<String>> entry : capabilityTokensByDomain.entrySet()) {
+            String domain = entry.getKey();
+            List<String> tokens = entry.getValue();
+
+            Log.d(LOGTAG, "Domain: " + domain + " has " + tokens.size() + " token(s)");
+
+            for (int i = 0; i < tokens.size(); i++) {
+                String token = tokens.get(i);
+                String compressedToken = token.substring(0, Math.min(50, token.length()));
+                Log.d(LOGTAG, "  Token " + (i + 1) + ": " + compressedToken + "...");
+            }
+        }
+    }
 }

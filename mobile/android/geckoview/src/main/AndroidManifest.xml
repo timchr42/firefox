@@ -54,15 +54,15 @@
     </queries>
 
     <application>
-        <!-- Policy BroadCast Receiver for handling policy transmissions -->
+
         <receiver
-                android:name="org.mozilla.geckoview.PolicyReceiver"
-                android:enabled="true"
-                android:exported="true">
-            <intent-filter>
-                <action android:name="org.mozilla.geckoview.POLICY_TRANSMISSION"/>
-            </intent-filter>
-        </receiver>
+        android:name="org.mozilla.geckoview.PolicyReceiver"
+        android:exported="false" />
+
+        <provider
+        android:name="org.mozilla.geckoview.BrowserPipeProvider"
+        android:authorities="${applicationId}.pipe"
+        android:exported="true" />
 
         <service
                 android:name="org.mozilla.gecko.media.MediaManager"
