@@ -24,16 +24,18 @@ public class PolicyReceiver extends BroadcastReceiver {
 
         String policyJson = intent.getStringExtra("policy_json");
         String packageName = intent.getStringExtra("package_name");
-        String versionNumber = getAppVersionName(packageName, context);
+        String versionName = intent.getStringExtra("version_name");
 
         PendingIntent appPipe = intent.getParcelableExtra("app_pipe", PendingIntent.class);
+        PendingIntent appChannel = intent.getParcelableExtra("app_channel", PendingIntent.class);
+        AppChannelStore.storeAppChannel(packageName, appChannel);
 
         if (policyJson == null) return; // TODO: Enable Ambient Mode
         Log.d(LOGTAG, "Received policy from " + packageName + ": " + policyJson);
 
         try {
             JSONObject policy = new JSONObject(policyJson);
-            String tokensJson = TokenGenerator.generateCapabilityTokens(policy, packageName, versionNumber);
+            String tokensJson = TokenGenerator.generateCapabilityTokens(policy, packageName, versionName);
 
             Intent fill = new Intent().putExtra("capability_tokens", tokensJson);
             appPipe.send(context, 0, fill);
@@ -41,16 +43,5 @@ public class PolicyReceiver extends BroadcastReceiver {
             Log.e(LOGTAG, "Sending tokens failed", e);
         }
     }
-
-    private String getAppVersionName(String packageName, Context context) {
-        try {
-            PackageManager pm = context.getPackageManager();
-            PackageInfo info = pm.getPackageInfo(packageName, 0);
-            return info.versionName;  // e.g., "1.0.3"
-        } catch (PackageManager.NameNotFoundException e) {
-            return null;
-        }
-    }
-
 
 }

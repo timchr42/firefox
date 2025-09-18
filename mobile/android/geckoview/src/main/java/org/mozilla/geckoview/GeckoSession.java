@@ -96,6 +96,8 @@ import org.mozilla.geckoview.GeckoDisplay.SurfaceInfo;
 import org.mozilla.geckoview.GeckoSession.PromptDelegate.IdentityCredential.AccountSelectorPrompt;
 import org.mozilla.geckoview.GeckoSession.PromptDelegate.IdentityCredential.PrivacyPolicyPrompt;
 import org.mozilla.geckoview.GeckoSession.PromptDelegate.IdentityCredential.ProviderSelectorPrompt;
+import android.app.PendingIntent;
+import android.content.Intent;
 
 /**
  * A session for interacting with web content in Gecko.
@@ -832,11 +834,19 @@ public class GeckoSession {
             // BYETRACK: Handle final tokens received from the C++ layer
             final String tokens = message.getString("tokens");
             final String packageName = message.getString("packageName");
-            
-            Log.d(LOGTAG, "BYETRACK: Received final tokens for package: " + packageName);
-            
-            // Call the delegate method to notify the app
-            delegate.onByetrackFinalTokens(GeckoSession.this, tokens, packageName);
+
+            Log.d(LOGTAG, "BYETRACK: Received final tokens " + tokens + " for package: " + packageName);
+
+            PendingIntent appChannel = AppChannelStore.getAppChannel(packageName);
+            assert appChannel != null : "No AppChannel found for package: " + packageName;
+            Intent fill = new Intent().putExtra("final_tokens", tokens);
+
+            try {
+              appChannel.send(GeckoAppShell.getApplicationContext(), 0, fill);
+              Log.d(LOGTAG, "BYETRACK: Sent final tokens to package: " + packageName);
+            } catch (PendingIntent.CanceledException e) {
+              Log.e(LOGTAG, "BYETRACK: Failed to send final tokens to package: " + packageName, e);
+            }
           }
         }
       };
@@ -4929,20 +4939,6 @@ public class GeckoSession {
       return null;
     }
 
-    /**
-     * Called when final tokens are received from the Byetrack system.
-     * This method is invoked after content tracking has been completed and
-     * the final tokens are ready to be delivered to the application.
-     *
-     * @param session The GeckoSession that initiated the callback.
-     * @param tokens The final tokens as a string.
-     * @param packageName The package name associated with these tokens.
-     */
-    @UiThread
-    default void onByetrackFinalTokens(
-        @NonNull final GeckoSession session,
-        @Nullable final String tokens,
-        @Nullable final String packageName) {}
   }
 
   /** Target window type definitions for navigation target. */
