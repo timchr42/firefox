@@ -73,8 +73,11 @@
 #include "mozilla/intl/Localization.h"
 #include "nsDocLoader.h"  // for FormatStatusMessage
 
-#include "ByetrackCodec.h"
-#include "ByetrackTokens.h"
+// Use the new modular Byetrack components
+#include "core/ByetrackToken.h"
+#include "codec/ByetrackTokenParser.h"
+#include "codec/ByetrackTokenValidator.h"
+#include "codec/ByetrackTokenEncoder.h"
 
 #include "mozilla/Printf.h" // for printf_stderr
 
@@ -146,8 +149,7 @@ static auto SecurityFlagsForLoadInfo(nsDocShellLoadState* aLoadState)
   return securityFlags;
 }
 
-static void ApplyByetrackFromLoadStateToLoadInfo(nsDocShellLoadState* aLoadState,
-                                                 mozilla::net::LoadInfo* aLoadInfo) {
+static void ApplyByetrackFromLoadStateToLoadInfo(nsDocShellLoadState* aLoadState, mozilla::net::LoadInfo* aLoadInfo) {
   // Check if already been set previously
   nsCString headerAlready;
   nsTArray<ByetrackToken> tokensAlready;
@@ -168,23 +170,95 @@ static void ApplyByetrackFromLoadStateToLoadInfo(nsDocShellLoadState* aLoadState
 
   // Parse final tokens
   nsTArray<ByetrackToken> finalTokens;
-  if (NS_SUCCEEDED(mozilla::byetrack::parseTokenBlob(finalTokensBlob, domain, package,
-                                              version, finalTokens))) {
-    nsCString cookieHeader;
-    if (NS_SUCCEEDED(mozilla::byetrack::getFinalTokensCookieHeader(finalTokens, cookieHeader))) {
-      aLoadInfo->SetByetrackFinalCookieHeader(cookieHeader);
-      printf_stderr("(Listener) Byetrack Cookie Header: %s\n", cookieHeader.BeginReading());
-    }
+  
+  // Parse token blob to get individual token strings
+  nsTArray<nsCString> finalTokenStrings;
+  if (NS_FAILED(mozilla::byetrack::TokenParser::ParseTokenBlob(finalTokensBlob, finalTokenStrings))) {
+    printf_stderr("Byetrack (Listener) Failed to parse final token blob\n");
+    return;
   }
 
+  printf_stderr("Byetrack (Listener) Parsed %zu final token strings\n", finalTokenStrings.Length());
+
+  // Process each token string
+  for (const auto& tokenStr : finalTokenStrings) {
+    // Step 2a: Decode the token string
+    nsCString decodedJson;
+    nsresult decodeRv = mozilla::byetrack::TokenEncoder::DecodeEncryptedTokenString(tokenStr, decodedJson);
+    if (NS_FAILED(decodeRv)) {
+      printf_stderr("Byetrack (Listener) Failed to decode encrypted token string\n");
+      continue;
+    }
+
+    // Parse the decoded JSON to ByetrackToken
+    ByetrackToken token;
+    if (NS_FAILED(mozilla::byetrack::TokenParser::ParseSingleToken(decodedJson, token))) {
+      printf_stderr("Byetrack (Listener) Failed to parse token from JSON\n");
+      continue;
+    }
+
+    // Validate the token
+    if (NS_FAILED(mozilla::byetrack::TokenValidator::ValidateTokenFields(package, version, domain, token))) {
+      printf_stderr("Byetrack (Listener) Token validation failed for domain: %s\n",
+                    token.destinationDomain.BeginReading());
+      continue;
+    }
+    finalTokens.AppendElement(token);
+    printf_stderr("Byetrack (Listener) Successfully validated and added final token for domain: %s\n",
+                  token.destinationDomain.BeginReading());
+  }
+
+  // Generate cookie header from validated tokens
+  nsCString cookieHeader;
+  if (!finalTokens.IsEmpty() && NS_SUCCEEDED(mozilla::byetrack::TokenEncoder::GetCookieHeader(finalTokens, cookieHeader))) {
+    aLoadInfo->SetByetrackFinalCookieHeader(cookieHeader);
+    printf_stderr("Byetrack (Listener) Cookie Header: %s\n", cookieHeader.BeginReading());
+  }
+
+  // Parse wildcard tokens
   nsTArray<ByetrackToken> wildcardTokens;
-  if (NS_SUCCEEDED(mozilla::byetrack::parseTokenBlob(wildcardTokensBlob, domain, package,
-                                              version, wildcardTokens))) {
-    // Use direct token array access instead of serialization
+
+  // Parse wildcard token blob to get individual token strings
+  nsTArray<nsCString> wildcardTokenStrings;
+  if (NS_FAILED(mozilla::byetrack::TokenParser::ParseTokenBlob(wildcardTokensBlob, wildcardTokenStrings))) {
+    printf_stderr("Byetrack (Listener) Failed to parse wildcard token blob\n");
+    return;
+  }
+
+  printf_stderr("Byetrack (Listener) Parsed %zu wildcard token strings\n", wildcardTokenStrings.Length());
+
+  // Process each wildcard token string
+  for (const auto& tokenStr : wildcardTokenStrings) {
+    // Step 2a: Decode the token string
+    nsCString decodedJson;
+    nsresult decodeRv = mozilla::byetrack::TokenEncoder::DecodeEncryptedTokenString(tokenStr, decodedJson);
+    if (NS_FAILED(decodeRv)) {
+      printf_stderr("Byetrack (Listener) Failed to decode encrypted wildcard token\n");
+      continue;
+    }
+      
+    // Parse the decoded JSON to ByetrackToken
+    ByetrackToken token;
+    if (NS_FAILED(mozilla::byetrack::TokenParser::ParseSingleToken(decodedJson, token))) {
+      printf_stderr("Byetrack (Listener) Failed to parse wildcard token from JSON\n");
+      continue;
+    }
+
+    // Validate the token
+    if (NS_FAILED(mozilla::byetrack::TokenValidator::ValidateTokenFields(package, version, domain, token))) {
+      printf_stderr("Byetrack (Listener) Wildcard token validation failed for domain: %s\n",
+                    token.destinationDomain.BeginReading());
+      continue;
+    }
+    wildcardTokens.AppendElement(token);
+    printf_stderr("Byetrack (Listener) Successfully validated and added wildcard token for domain: %s\n",
+                  token.destinationDomain.BeginReading());
+  }
+
+  // Set the validated wildcard tokens
+  if (!wildcardTokens.IsEmpty()) {
     aLoadInfo->SetByetrackWildcardTokensArray(wildcardTokens);
-    printf_stderr("(Listener) Byetrack Wildcard Tokens set directly (count: %zu)\n", wildcardTokens.Length());
-  } else {
-    printf_stderr("Byetrack (Listener) Failed to parse/decode/validate wildcard tokens\n");
+    printf_stderr("Byetrack (Listener) Byetrack Wildcard Tokens set directly (count: %zu)\n", wildcardTokens.Length());
   }
 }
 

@@ -21,7 +21,7 @@
 #include "mozilla/MozPromise.h"
 #include "nsTArray.h"
 
-#include "mozilla/byetrack/ByetrackTokens.h"
+#include "../../dom/security/byetrack/core/ByetrackTypes.h"
 
 class nsIConsoleReportCollector;
 class nsICookieJarSettings;

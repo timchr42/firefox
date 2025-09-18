@@ -1,4 +1,5 @@
 #include "ByetrackCrypto.h"
+#include "../core/ByetrackConstants.h"
 #include <nss.h>
 #include <pk11pub.h>
 #include <secitem.h>
@@ -8,7 +9,7 @@
 
 namespace mozilla::byetrack {
 
-static const char* SECRET_KEY = "super-secret-key";
+static const char* SECRET_KEY = crypto::SECRET_KEY;
 
 nsresult hmac_sha256(std::string_view msg, FallibleTArray<uint8_t>& outHmac) {
     SECItem keyItem;

@@ -1,5 +1,6 @@
 #include "nsTArray.h"
 #include "nsString.h"
+#include "../core/ByetrackConstants.h"
 
 namespace mozilla::byetrack {
 

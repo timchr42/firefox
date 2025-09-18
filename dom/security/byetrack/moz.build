@@ -8,14 +8,42 @@ with Files("*"):
     BUG_COMPONENT = ("Core", "DOM: Security")
 
 EXPORTS.mozilla.byetrack += [
-    "ByetrackCodec.h",
-    "ByetrackCrypto.h",
-    "ByetrackTokens.h",
+    "ByetrackAPI.h",
+]
+
+EXPORTS.mozilla.byetrack.core += [
+    "core/ByetrackConstants.h",
+    "core/ByetrackToken.h", 
+    "core/ByetrackTypes.h",
+]
+
+EXPORTS.mozilla.byetrack.codec += [
+    "codec/ByetrackTokenEncoder.h",
+    "codec/ByetrackTokenParser.h",
+    "codec/ByetrackTokenValidator.h",
+]
+
+EXPORTS.mozilla.byetrack.crypto += [
+    "crypto/ByetrackCrypto.h",
+]
+
+EXPORTS.mozilla.byetrack.utils += [
+    "utils/ByetrackBase64Utils.h",
+    "utils/ByetrackLogging.h",
+]
+
+EXPORTS.mozilla.byetrack.tests += [
+    "tests/ByetrackTests.h",
 ]
 
 UNIFIED_SOURCES += [
-    "ByetrackCodec.cpp",
-    "ByetrackCrypto.cpp",
+    "codec/ByetrackTokenEncoder.cpp",
+    "codec/ByetrackTokenParser.cpp",
+    "codec/ByetrackTokenValidator.cpp",
+    "core/ByetrackTypes.cpp",
+    "crypto/ByetrackCrypto.cpp",
+    "tests/ByetrackTests.cpp",
+    "utils/ByetrackBase64Utils.cpp",
 ]
 
 FINAL_LIBRARY = "xul"

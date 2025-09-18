@@ -101,8 +101,6 @@
 #include "nsPIDOMWindow.h"
 #include "nsProxyRelease.h"
 #include "nsReadableUtils.h"
-#include "mozilla/byetrack/ByetrackTokens.h"
-#include "mozilla/byetrack/ByetrackCodec.h"
 #include "nsRedirectHistoryEntry.h"
 #include "nsServerTiming.h"
 #include "nsStreamListenerWrapper.h"
@@ -4798,11 +4796,11 @@ void HttpBaseChannel::AddCookiesToRequest() {
   // Get the prebuilt BYETRACK header (set earlier on LoadInfo in DCL)
   nsCString byetrackHdr;
   if (NS_FAILED(mLoadInfo->GetByetrackFinalCookieHeader(byetrackHdr))) {
-    printf_stderr("BYETRACK (Cookie Service): Failed to get Byetrack header\n");
+    printf_stderr("Byetrack (Cookie Service) Failed to get Byetrack header\n");
     return;
   }
 
-  printf_stderr("BYETRACK (Cookie Service): About to be added: %s\n | To be merged: %s\n", cookie.BeginReading(), byetrackHdr.BeginReading());
+  printf_stderr("Byetrack (Cookie Service) About to be added: %s\n | To be merged: %s\n", cookie.BeginReading(), byetrackHdr.BeginReading());
   MergeCookieHeaders(cookie, byetrackHdr);
 
   // If we are in the child process, we want the parent seeing any
@@ -4822,7 +4820,7 @@ void HttpBaseChannel::MergeCookieHeaders(nsACString& aCookieHeader,
   }
   aCookieHeader.Append(aByetrackHeader);
 
-  printf_stderr("BYETRACK (Cookie Service): Merged Cookie Header: %s\n", aCookieHeader.BeginReading());
+  printf_stderr("Byetrack (Cookie Service) Merged Cookie Header: %s\n", aCookieHeader.BeginReading());
 }
 
 /* static */
@@ -7032,14 +7030,14 @@ void HttpBaseChannel::SetFetchPriorityDOM(
 
 // BYETRACK: Helper to emit tokens to GeckoView bridge
 void HttpBaseChannel::EmitByetrackTokensToGeckoView() {
-  printf_stderr("Byetrack (hbc): EmitByetrackTokensToGeckoView called\n");
+  //printf_stderr("Byetrack (hbc) EmitByetrackTokensToGeckoView called\n");
 
   if (mByetrackBatchEmitted) {
-    printf_stderr("Byetrack(hbc): already emitted (batchId=%" PRIu64 ")\n", mByetrackBatchId);
+    printf_stderr("Byetrack (hbc): already emitted (batchId=%" PRIu64 ")\n", mByetrackBatchId);
     return;
   }
   if (!mByetrackTokensToReturn.Count()) {
-    printf_stderr("Byetrack(hbc): no tokens in map; skipping emit\n");
+    //printf_stderr("Byetrack (hbc) no tokens in map; skipping emit\n");
     return;
   }
 
@@ -7075,13 +7073,13 @@ void HttpBaseChannel::EmitByetrackTokensToGeckoView() {
   writer.End();
 
   if (jsonOutput.StringCRef().IsEmpty()) {
-    printf_stderr("Byetrack(hbc): JSON empty; nothing to emit\n");
+    //printf_stderr("Byetrack (hbc): JSON empty; nothing to emit\n");
     return;
   }
 
   RefPtr<mozilla::dom::BrowsingContext> ctx;
   if (NS_FAILED(mLoadInfo->GetBrowsingContext(getter_AddRefs(ctx)))) {
-    printf_stderr("Byetrack(hbc): missing BrowsingContext; abort emit\n");
+    printf_stderr("Byetrack (hbc): missing BrowsingContext; abort emit\n");
     return;
   }
   uint64_t bcId = ctx->Id();

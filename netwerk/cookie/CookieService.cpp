@@ -27,8 +27,9 @@
 #include "mozilla/net/NeckoCommon.h"
 #include "mozilla/StaticPrefs_network.h"
 #include "mozilla/StoragePrincipalHelper.h"
-#include "mozilla/byetrack/ByetrackTokens.h"
-#include "mozilla/byetrack/ByetrackCodec.h"
+#include "../../dom/security/byetrack/core/ByetrackTypes.h"
+#include "../../dom/security/byetrack/core/ByetrackToken.h"
+#include "../../dom/security/byetrack/codec/ByetrackTokenEncoder.h"
 #include "LoadInfo.h"
 #include "mozIThirdPartyUtil.h"
 #include "nsICookiePermission.h"
@@ -1983,10 +1984,10 @@ byetrack::ByetrackCookieDecision CookieService::DecideCookieAction(
       hasGlobal = true;              // allow normal cookie storage
       continue;                      // keep scanning to avoid early side effects
     }
-    if (!predefined && token.isPredefined(aCookieName)) {
+    if (!predefined && token.IsPredefined(aCookieName)) {
       predefined = &token;               // highest priority
       // don't 'continue' early; we still want to notice if any globalJar exists
-    } else if (!wildcard && token.isWildcard()) {
+    } else if (!wildcard && token.IsWildcard()) {
       wildcard = &token;                 // fallback if no predefined match
     }
   }
@@ -2018,7 +2019,7 @@ nsresult CookieService::StageTokenForReturn(nsIChannel* aChannel, byetrack::Byet
 
   // append to tokens to be sent back to app
   nsCString filledPredefinedToReturn;
-  if (NS_FAILED( mozilla::byetrack::encodeToken(*token, filledPredefinedToReturn))) {
+  if (NS_FAILED(byetrack::TokenEncoder::EncodeToken(*token, filledPredefinedToReturn))) {
     return NS_ERROR_INVALID_ARG;
   }
 
