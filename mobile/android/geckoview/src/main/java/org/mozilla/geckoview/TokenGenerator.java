@@ -142,15 +142,14 @@ public final class TokenGenerator {
                 globalJar
             );
 
-            // Sign the token using the new Token class
+            // Sign token
             Token token = Token.sign(payload);
+            // Encode and encrypt token
+            String encryptedToken = token.encodeEncrypted();
 
-            // Encode to the compact wire format
-            String encodedToken = token.encode();
+            Log.d(LOGTAG, "Generated encrypted token for domain: " + domain + ", cookie: " + cookieName + ", globalJar: " + globalJar);
 
-            Log.d(LOGTAG, "Generated token for domain: " + domain + ", cookie: " + cookieName + ", globalJar: " + globalJar);
-
-            return encodedToken;
+            return encryptedToken;
 
         } catch (Exception e) {
             Log.e(LOGTAG, "Failed to generate token for domain: " + domain, e);

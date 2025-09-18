@@ -72,13 +72,13 @@ nsresult parseTokenBlob(const nsACString& aBlob, const nsACString& aDomainName,
     nsCString encodedTokenStr = NS_ConvertUTF16toUTF8(autoStr);
     printf_stderr("Byetrack (Codec) encoded token at index %d: %s\n", i, encodedTokenStr.BeginReading());
 
-    // decode encodedTokenStr
     nsCString decodedJsonString;
-    nsresult decode_rv = decodeTokenString(encodedTokenStr, decodedJsonString);
+    nsresult decode_rv = decodeEncryptedTokenString(encodedTokenStr, decodedJsonString);
     if (NS_FAILED(decode_rv)) {
-      printf_stderr("Byetrack (Codec) decode Failed");
+      printf_stderr("Byetrack (Codec): encrypted decode failed\n");
       return decode_rv;
     }
+
     printf_stderr("Byetrack (Codec) decoded JSON string: %s\n", decodedJsonString.BeginReading());
 
     ByetrackToken decodedToken;
@@ -494,6 +494,142 @@ nsresult testEncodeDecodeRoundtrip() {
   printf_stderr("Byetrack (Codec) Original:  %s\n", encodedToken.BeginReading());
   printf_stderr("Byetrack (Codec) Re-encoded: %s\n", reEncodedToken.BeginReading());
   return NS_ERROR_FAILURE;
+}
+
+// TEST FUNCTION
+nsresult testEncryptedEncodeDecodeRoundtrip() {
+  // Create a test token
+  ByetrackToken testToken;
+  testToken.destinationDomain = "example.com";
+  testToken.cookieName = "test_cookie";
+  testToken.cookieValue = "test_value";
+  testToken.packageName = "com.example.app";
+  testToken.versionName = "1.0.0";
+  testToken.accessRights = "READ_WRITE";
+  testToken.globalJar = true;
+
+  printf_stderr("Byetrack (Crypto) Testing encrypted encode/decode roundtrip...\n");
+  printf_stderr("Byetrack (Crypto) Original token: %s\n", testToken.toString().BeginReading());
+
+  // Encrypt and encode the token
+  nsCString encryptedToken;
+  nsresult rv = encodeEncryptedToken(testToken, encryptedToken);
+  if (NS_FAILED(rv)) {
+    printf_stderr("Byetrack (Crypto) Failed to encrypt and encode token\n");
+    return rv;
+  }
+  printf_stderr("Byetrack (Crypto) Encrypted token: %s\n", encryptedToken.BeginReading());
+
+  // Decrypt and decode the encrypted token
+  nsCString decodedJson;
+  rv = decodeEncryptedTokenString(encryptedToken, decodedJson);
+  if (NS_FAILED(rv)) {
+    printf_stderr("Byetrack (Crypto) Failed to decrypt and decode token\n");
+    return rv;
+  }
+  printf_stderr("Byetrack (Crypto) Decrypted JSON: %s\n", decodedJson.BeginReading());
+
+  // Parse the decoded JSON back to a token
+  ByetrackToken decodedToken;
+  rv = parseSingleToken(decodedJson, decodedToken);
+  if (NS_FAILED(rv)) {
+    printf_stderr("Byetrack (Crypto) Failed to parse decrypted token\n");
+    return rv;
+  }
+  printf_stderr("Byetrack (Crypto) Decrypted token: %s\n", decodedToken.toString().BeginReading());
+
+  // Re-encrypt the decoded token  
+  nsCString reEncryptedToken;
+  rv = encodeEncryptedToken(decodedToken, reEncryptedToken);
+  if (NS_FAILED(rv)) {
+    printf_stderr("Byetrack (Crypto) Failed to re-encrypt token\n");
+    return rv;
+  }
+  printf_stderr("Byetrack (Crypto) Re-encrypted token: %s\n", reEncryptedToken.BeginReading());
+
+  // Check if both tokens decrypt to the same JSON
+  nsCString reDecryptedJson;
+  rv = decodeEncryptedTokenString(reEncryptedToken, reDecryptedJson);
+  if (NS_FAILED(rv)) {
+    printf_stderr("Byetrack (Crypto) Failed to decrypt re-encrypted token\n");
+    return rv;
+  }
+
+  if (decodedJson.Equals(reDecryptedJson)) {
+    printf_stderr("Byetrack (Crypto) ✅ SUCCESS: Encrypted roundtrip preserves token data\n");
+    return NS_OK;
+  }
+  
+  printf_stderr("Byetrack (Crypto) ❌ FAILED: Encrypted roundtrip lost token data\n");
+  printf_stderr("Byetrack (Crypto) First decrypt:  %s\n", decodedJson.BeginReading());
+  printf_stderr("Byetrack (Crypto) Second decrypt: %s\n", reDecryptedJson.BeginReading());
+  return NS_ERROR_FAILURE;
+}
+
+nsresult decodeEncryptedTokenString(const nsACString& encryptedToken, nsACString& decoded) {
+  printf_stderr("Byetrack (Codec) Decrypting token: %s\n", encryptedToken.BeginReading());
+  
+  // First, base64url decode the encrypted data
+  FallibleTArray<uint8_t> encryptedBytes;
+  nsresult rv = mozilla::Base64URLDecode(
+      encryptedToken,
+      mozilla::Base64URLDecodePaddingPolicy::Ignore,
+      encryptedBytes);
+  if (NS_FAILED(rv)) {
+    printf_stderr("Byetrack (Codec) Failed to base64url decode encrypted token\n");
+    return rv;
+  }
+  
+  // Decrypt the data to get the original encoded token
+  nsCString encodedToken;
+  rv = aes_decrypt(encryptedBytes, encodedToken);
+  if (NS_FAILED(rv)) {
+    printf_stderr("Byetrack (Codec) Failed to decrypt token\n");
+    return rv;
+  }
+  
+  printf_stderr("Byetrack (Codec) Decrypted to encoded token: %s\n", encodedToken.BeginReading());
+  
+  // Now decode the standard token
+  return decodeTokenString(encodedToken, decoded);
+}
+
+nsresult encodeEncryptedToken(const ByetrackToken& token, nsACString& outEncryptedToken) {
+  printf_stderr("Byetrack (Codec) Encrypting token for domain: %s\n", token.destinationDomain.BeginReading());
+  
+  // First encode the token normally
+  nsCString encodedToken;
+  nsresult rv = encodeToken(token, encodedToken);
+  if (NS_FAILED(rv)) {
+    printf_stderr("Byetrack (Codec) Failed to encode token\n");
+    return rv;
+  }
+  
+  printf_stderr("Byetrack (Codec) Encoded token: %s\n", encodedToken.BeginReading());
+  
+  // Encrypt the encoded token
+  FallibleTArray<uint8_t> encryptedBytes;
+  std::string_view tokenView(encodedToken.BeginReading(), encodedToken.Length());
+  rv = aes_encrypt(tokenView, encryptedBytes);
+  if (NS_FAILED(rv)) {
+    printf_stderr("Byetrack (Codec) Failed to encrypt token\n");
+    return rv;
+  }
+  
+  // Base64url encode the encrypted data
+  nsCString encryptedB64;
+  rv = mozilla::Base64URLEncode(encryptedBytes.Length(), 
+                                encryptedBytes.Elements(),
+                                mozilla::Base64URLEncodePaddingPolicy::Omit,
+                                encryptedB64);
+  if (NS_FAILED(rv)) {
+    printf_stderr("Byetrack (Codec) Failed to base64url encode encrypted token\n");
+    return rv;
+  }
+  
+  outEncryptedToken.Assign(encryptedB64);
+  printf_stderr("Byetrack (Codec) Successfully created encrypted token\n");
+  return NS_OK;
 }
 
 } // namespace mozilla::byetrack
