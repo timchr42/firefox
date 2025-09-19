@@ -4705,10 +4705,7 @@ void HttpBaseChannel::ReleaseListeners() {
   mORB = nullptr;
 }
 
-// BYETRACK: bridge tokens-to-return
 void HttpBaseChannel::DoNotifyListener() {
-  LOG(("HttpBaseChannel::DoNotifyListener this=%p", this));
-  printf_stderr("Byetrack (hbc): DoNotifyListener called for this=%p\n", this);
 
   // In case nsHttpChannel::OnStartRequest wasn't called (e.g. due to flag
   // LOAD_ONLY_IF_MODIFIED) we want to set AfterOnStartRequestBegun to true
@@ -4800,7 +4797,6 @@ void HttpBaseChannel::AddCookiesToRequest() {
     return;
   }
 
-  printf_stderr("Byetrack (Cookie Service) About to be added: %s\n | To be merged: %s\n", cookie.BeginReading(), byetrackHdr.BeginReading());
   MergeCookieHeaders(cookie, byetrackHdr);
 
   // If we are in the child process, we want the parent seeing any

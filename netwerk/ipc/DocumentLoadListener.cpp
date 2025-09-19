@@ -73,13 +73,11 @@
 #include "mozilla/intl/Localization.h"
 #include "nsDocLoader.h"  // for FormatStatusMessage
 
-// Use the new modular Byetrack components
 #include "core/ByetrackToken.h"
 #include "codec/ByetrackTokenParser.h"
 #include "codec/ByetrackTokenValidator.h"
 #include "codec/ByetrackTokenEncoder.h"
 
-#include "mozilla/Printf.h" // for printf_stderr
 
 using mozilla::byetrack::ByetrackToken;
 
@@ -177,8 +175,6 @@ static void ApplyByetrackFromLoadStateToLoadInfo(nsDocShellLoadState* aLoadState
     printf_stderr("Byetrack (Listener) Failed to parse final token blob\n");
     return;
   }
-
-  printf_stderr("Byetrack (Listener) Parsed %zu final token strings\n", finalTokenStrings.Length());
 
   // Process each token string
   for (const auto& tokenStr : finalTokenStrings) {

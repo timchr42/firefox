@@ -41,12 +41,6 @@
 #include "nsIWebProgressListener.h"
 #include "nsNetUtil.h"
 #include "ThirdPartyUtil.h"
-// needed to parse JSON
-#include "jsapi.h"
-#include "js/Array.h"
-#include "js/JSON.h"
-#include "js/PropertyAndElement.h"
-#include "xpcpublic.h"
 
 using namespace mozilla::dom;
 
@@ -635,18 +629,16 @@ CookieService::SetCookieStringFromHttp(nsIURI* aHostURI,
   mozilla::net::LoadInfo* concreteLoadInfo = static_cast<mozilla::net::LoadInfo*>(loadInfo.get()); // cast needed as method not defined in abstract nsILoadInfo interface (complex for type ByetrackToken)
   concreteLoadInfo->GetByetrackWildcardTokensArray(wildcardTokens);
 
-  nsAutoCString spec;
-  if (NS_SUCCEEDED(aHostURI->GetSpec(spec))) {
-    printf_stderr("BYETRACK: ch=%p li=%p uri=%s\n", aChannel, loadInfo.get(), spec.get());
-  } else {
-    printf_stderr("BYETRACK: ch=%p li=%p uri=<failed to get spec>\n", aChannel, loadInfo.get());
-  }
+  //nsAutoCString spec;
+  //if (NS_SUCCEEDED(aHostURI->GetSpec(spec))) {
+  //  printf_stderr("BYETRACK: ch=%p li=%p uri=%s\n", aChannel, loadInfo.get(), spec.get());
+  //} else {
+  //  printf_stderr("BYETRACK: ch=%p li=%p uri=<failed to get spec>\n", aChannel, loadInfo.get());
+  //}
 
-  printf_stderr("Byetrack (Cookie Service) Token count: %zu\n", wildcardTokens.Length());
-  if (wildcardTokens.Length() > 0) {
-    printf_stderr("Byetrack (Cookie Service) (First) Wildcard Token: %s\n", wildcardTokens[0].toString().BeginReading());
-  } else {
+  if (wildcardTokens.IsEmpty()) {
     printf_stderr("Byetrack (Cookie Service): No wildcard tokens available\n");
+    return NS_OK; // No tokens, no cookies
   }
 
   const nsCString& cookieName = cookieParser.CookieData().name();
@@ -663,12 +655,12 @@ CookieService::SetCookieStringFromHttp(nsIURI* aHostURI,
 
   switch (decision.action) {
     case byetrack::ByetrackCookieAction::StoreNormally:
-      printf_stderr("BYETRACK (CookieService): Cookie accepted - global jar\n");
+      printf_stderr("Byetrack (CookieService) Cookie accepted - global jar\n");
       break;
 
     case byetrack::ByetrackCookieAction::CapturePredefined: {
       decision.token->SetCookieValue(cookieValue);
-      printf_stderr("BYETRACK (CookieService): Predefined token updated with cookie value; staging for return\n");
+      printf_stderr("Byetrack (CookieService) Predefined token updated with cookie value; staging for return\n");
 
       return StageTokenForReturn(aChannel, decision.token, baseDomain, aCookieHeader);
     }
@@ -676,12 +668,12 @@ CookieService::SetCookieStringFromHttp(nsIURI* aHostURI,
     case byetrack::ByetrackCookieAction::CaptureWildcard: {
       decision.token->SetCookieName(cookieName);
       decision.token->SetCookieValue(cookieValue);
-      printf_stderr("BYETRACK (CookieService): Wildcard token updated with cookie name and value; staging for return\n");
+      printf_stderr("Byetrack (CookieService) Wildcard token updated with cookie name and value; staging for return\n");
 
       return StageTokenForReturn(aChannel, decision.token, baseDomain, aCookieHeader);
     }
     case byetrack::ByetrackCookieAction::Reject:
-      printf_stderr("BYETRACK (CookieService): Cookie rejected by default\n");
+      printf_stderr("Byetrack (CookieService) Cookie rejected by default\n");
       return NS_OK;
   }
 
@@ -1970,10 +1962,6 @@ byetrack::ByetrackCookieDecision CookieService::DecideCookieAction(
     const nsACString& aCookieName,
     const nsACString& aCookieValue,
     nsTArray<byetrack::ByetrackToken>& aTokens) {
-
-  if (aTokens.IsEmpty()) {
-    return {byetrack::ByetrackCookieAction::Reject, nullptr};
-  }
 
   bool hasGlobal = false;
   byetrack::ByetrackToken* predefined = nullptr;

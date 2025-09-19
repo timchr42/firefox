@@ -7,10 +7,6 @@
 with Files("*"):
     BUG_COMPONENT = ("Core", "DOM: Security")
 
-EXPORTS.mozilla.byetrack += [
-    "ByetrackAPI.h",
-]
-
 EXPORTS.mozilla.byetrack.core += [
     "core/ByetrackConstants.h",
     "core/ByetrackToken.h", 
