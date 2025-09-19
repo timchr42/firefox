@@ -27,9 +27,6 @@
 #include "mozilla/net/NeckoCommon.h"
 #include "mozilla/StaticPrefs_network.h"
 #include "mozilla/StoragePrincipalHelper.h"
-#include "../../dom/security/byetrack/core/ByetrackTypes.h"
-#include "../../dom/security/byetrack/core/ByetrackToken.h"
-#include "../../dom/security/byetrack/codec/ByetrackTokenEncoder.h"
 #include "LoadInfo.h"
 #include "mozIThirdPartyUtil.h"
 #include "nsICookiePermission.h"
@@ -41,6 +38,10 @@
 #include "nsIWebProgressListener.h"
 #include "nsNetUtil.h"
 #include "ThirdPartyUtil.h"
+
+#include "../base/byetrack/core/ByetrackTypes.h"
+#include "../base/byetrack/core/ByetrackToken.h"
+#include "../base/byetrack/codec/ByetrackTokenEncoder.h"
 
 using namespace mozilla::dom;
 

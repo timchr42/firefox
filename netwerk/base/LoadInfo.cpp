@@ -26,7 +26,7 @@
 #include "mozilla/NullPrincipal.h"
 #include "mozilla/StaticPrefs_network.h"
 #include "mozilla/StaticPrefs_security.h"
-#include "../../dom/security/byetrack/core/ByetrackToken.h"
+#include "./byetrack/core/ByetrackToken.h"
 #include "mozIThirdPartyUtil.h"
 #include "ThirdPartyUtil.h"
 #include "nsContentSecurityManager.h"

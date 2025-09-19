@@ -290,6 +290,7 @@ EXTRA_JS_MODULES += [
 ]
 
 DIRS += [
+    "byetrack",
     "mozurl",
     "rust-helper",
     "http-sfv",
@@ -306,8 +307,8 @@ LOCAL_INCLUDES += [
     "!/xpcom/components",
     "/docshell/base",
     "/dom/base",
-    "/dom/security/byetrack",
     "/js/xpconnect/src",
+    "/netwerk/base/byetrack",
     "/netwerk/dns",
     "/netwerk/protocol/http",
     "/netwerk/protocol/webtransport",
