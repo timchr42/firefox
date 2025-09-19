@@ -1959,6 +1959,7 @@ CookieService::MaybeCapExpiry(int64_t aExpiryInMSec, int64_t* aResult) {
   return NS_OK;
 }
 
+// Byetrack
 byetrack::ByetrackCookieDecision CookieService::DecideCookieAction(
     const nsACString& aCookieName,
     const nsACString& aCookieValue,
@@ -2000,22 +2001,22 @@ nsresult CookieService::StageTokenForReturn(nsIChannel* aChannel, byetrack::Byet
 
   // Check if token encoded token already exists in final tokens
   if (finalCookieHeader.Find(aCookieHeader) != kNotFound) {
-    printf("BYETRACK (StageTokenForReturn): Predefined token already exists in final tokens, not staging to return\n");
+    printf("Byetrack (StageTokenForReturn) Predefined token already exists in final tokens, not staging to return\n");
     return NS_OK;
   }
-  printf_stderr("BYETRACK (StageTokenForReturn): Received Cookie Header: %s\n", aCookieHeader.BeginReading());
-  printf_stderr("BYETRACK (StageTokenForReturn): Final Cookie Header: %s\n", finalCookieHeader.BeginReading());
+  printf_stderr("Byetrack (StageTokenForReturn) Received Cookie Header: %s\n", aCookieHeader.BeginReading());
+  printf_stderr("Byetrack (StageTokenForReturn) Final Cookie Header: %s\n", finalCookieHeader.BeginReading());
 
   // append to tokens to be sent back to app
   nsCString filledPredefinedToReturn;
-  if (NS_FAILED(byetrack::TokenEncoder::EncodeToken(*token, filledPredefinedToReturn))) {
+  if (NS_FAILED(byetrack::TokenEncoder::EncodeEncryptedToken(*token, filledPredefinedToReturn))) {
     return NS_ERROR_INVALID_ARG;
   }
 
   nsCOMPtr<nsIHttpChannelInternal> hci = do_QueryInterface(aChannel);
   nsresult rv = hci->AddByetrackTokenToReturnForDomain(baseDomain, filledPredefinedToReturn);
   if (NS_FAILED(rv)) {
-    printf_stderr("BYETRACK (CookieService): Failed to add predefined token to return: %08x\n", static_cast<uint32_t>(rv));
+    printf_stderr("Byetrack (CookieService) Failed to add predefined token to return: %08x\n", static_cast<uint32_t>(rv));
     return rv;
   }
 
