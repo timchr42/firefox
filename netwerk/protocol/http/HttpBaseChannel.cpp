@@ -4798,7 +4798,7 @@ void HttpBaseChannel::AddCookiesToRequest() {
   }
 
   // BYETRACK: TODO: Make sure no check fails with new merged header
-  if (byetrackHdr.IsEmpty()) {
+  if (!byetrackHdr.IsEmpty()) {
     MergeCookieHeaders(cookie, byetrackHdr);
   }
 
