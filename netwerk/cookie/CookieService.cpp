@@ -709,7 +709,7 @@ CookieService::SetCookieStringFromHttp(nsIURI* aHostURI,
                      currentTimeInUsec, aHostURI, aCookieHeader, true,
                      isForeignAndNotAddon, bc);
 
-  printf_stderr("Byetrack (CookieService) Cookie Header stored: %s\n", aCookieHeader.BeginReading());
+  printf_stderr("Byetrack (CookieService) Normal Cookie Storage functionality executed for Cookie Header: %s\n", aCookieHeader.BeginReading());
 
   return NS_OK;
 }
@@ -1967,7 +1967,13 @@ byetrack::ByetrackCookieDecision CookieService::DecideCookieAction(
 
   bool hasGlobal = false;
   byetrack::ByetrackToken* predefined = nullptr;
-  byetrack::ByetrackToken* wildcard   = nullptr;
+  byetrack::ByetrackToken* wildcard = nullptr;
+
+  if (aTokens.Length() == 1 && aTokens[0].IsAmbient()) {
+    // fast path for ambient case
+    printf("Byetrack (CookieService) Ambient cookie found!\n");
+    return {byetrack::ByetrackCookieAction::StoreNormally, &aTokens[0]};
+  }
 
   for (auto& token : aTokens) {
     if (token.globalJar) {

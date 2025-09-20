@@ -50,6 +50,12 @@ public:
            cookieValue.Equals(token::WILDCARD_VALUE);
   }
 
+  bool IsAmbient() const {
+    return destinationDomain.Equals(token::WILDCARD_VALUE) &&
+           cookieName.Equals(token::WILDCARD_VALUE) &&
+           cookieValue.Equals(token::WILDCARD_VALUE);
+  }
+
   bool IsDefault() const {
     return versionName.Equals(token::DEFAULT_VERSION);
   }

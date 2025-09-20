@@ -19,6 +19,24 @@ import org.mozilla.gecko.util.TokenPayload;
 public final class TokenGenerator {
     private static final String LOGTAG = "TokenGenerator";
 
+    public static boolean isAmbient = false;
+
+    public static String generateAmbientToken(String packageName, String versionName) {
+        isAmbient = true;
+        Log.w(LOGTAG, "No policy provided for " + packageName + "; Returning Ambient Wildcard token");
+        String ambientToken = generateSingleToken("*", "*", "*", true, packageName, versionName, TokenPayload.AccessRights.READ);
+        try {
+            JSONObject json = new JSONObject();
+            JSONArray tokenArray = new JSONArray();
+            tokenArray.put(ambientToken);
+            json.put("*", tokenArray);
+            return json.toString();
+        } catch (Exception e) {
+            Log.e(LOGTAG, "Failed to create JSON for Ambient token", e);
+            return "";
+        }
+    }
+
     /**
      * Creates capability tokens based on the policy for a specific package.
      * Generates tokens organized by domain.

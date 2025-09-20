@@ -1,7 +1,6 @@
 #ifndef DOM_SECURITY_BYETRACK_CODEC_BYETRACKTOKENVALIDATOR_H_
 #define DOM_SECURITY_BYETRACK_CODEC_BYETRACKTOKENVALIDATOR_H_
 
-#include "nsString.h"
 #include "nsError.h"
 #include "../core/ByetrackToken.h"
 
@@ -32,21 +31,6 @@ public:
    * Validate that a token has all required fields
    */
   static bool IsTokenComplete(const ByetrackToken& aToken);
-
-  /**
-   * Validate package name format (basic validation)
-   */
-  static bool IsValidPackageName(const nsACString& aPackageName);
-
-  /**
-   * Validate version name format
-   */
-  static bool IsValidVersionName(const nsACString& aVersionName);
-
-  /**
-   * Validate domain name format
-   */
-  static bool IsValidDomainName(const nsACString& aDomainName);
 
 private:
   TokenValidator() = delete;

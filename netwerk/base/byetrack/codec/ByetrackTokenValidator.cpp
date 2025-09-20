@@ -44,8 +44,8 @@ bool TokenValidator::IsValidDomainMatch(const nsACString& aExpectedDomain,
     return false;
   }
 
-  // Exact match
-  if (aExpectedDomain.Equals(aTokenDomain)) {
+  // Exact match or wildcard match
+  if (aExpectedDomain.Equals(aTokenDomain) || aTokenDomain.Equals(token::WILDCARD_VALUE)) {
     return true;
   }
 
@@ -72,35 +72,6 @@ bool TokenValidator::IsTokenComplete(const ByetrackToken& aToken) {
          !aToken.cookieName.IsEmpty() &&
          !aToken.packageName.IsEmpty() &&
          !aToken.versionName.IsEmpty();
-}
-
-bool TokenValidator::IsValidPackageName(const nsACString& aPackageName) {
-  if (aPackageName.IsEmpty()) {
-    return false;
-  }
-  
-  // Basic validation - should contain at least one dot for proper package naming
-  return aPackageName.Find(".") != kNotFound;
-}
-
-bool TokenValidator::IsValidVersionName(const nsACString& aVersionName) {
-  if (aVersionName.IsEmpty()) {
-    return false;
-  }
-  
-  // Allow "DEFAULT" or version numbers
-  return aVersionName.Equals(nsDependentCString(token::DEFAULT_VERSION)) ||
-         aVersionName.Find(".") != kNotFound; // Simple version check
-}
-
-bool TokenValidator::IsValidDomainName(const nsACString& aDomainName) {
-  if (aDomainName.IsEmpty()) {
-    return false;
-  }
-  
-  // Basic domain validation - should contain at least one dot unless it's a wildcard
-  return aDomainName.Find(".") != kNotFound || 
-         aDomainName.Find("*") == 0;
 }
 
 } // namespace mozilla::byetrack

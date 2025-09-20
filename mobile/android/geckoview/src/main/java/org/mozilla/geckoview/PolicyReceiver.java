@@ -30,15 +30,24 @@ public class PolicyReceiver extends BroadcastReceiver {
         PendingIntent appChannel = intent.getParcelableExtra("app_channel", PendingIntent.class);
         AppChannelStore.storeAppChannel(packageName, appChannel);
 
-        if (policyJson == null) return; // TODO: Enable Ambient Mode
         Log.d(LOGTAG, "Received policy from " + packageName + ": " + policyJson);
+        boolean isAmbient = policyJson == null;
+        Log.d(LOGTAG, "isAmbient: " + isAmbient);
 
         try {
-            JSONObject policy = new JSONObject(policyJson);
-            String tokensJson = TokenGenerator.generateCapabilityTokens(policy, packageName, versionName);
+            String tokensJson;
+            if (isAmbient) {
+                tokensJson = TokenGenerator.generateAmbientToken(packageName, versionName);
+            } else {
+                JSONObject policy = new JSONObject(policyJson);
+                tokensJson = TokenGenerator.generateCapabilityTokens(policy, packageName, versionName);
+            }
 
-            Intent fill = new Intent().putExtra("capability_tokens", tokensJson);
+            Intent fill = new Intent()
+                .putExtra("capability_tokens", tokensJson)
+                .putExtra("is_ambient", isAmbient);
             appPipe.send(context, 0, fill);
+
         } catch (Exception e) {
             Log.e(LOGTAG, "Sending tokens failed", e);
         }
