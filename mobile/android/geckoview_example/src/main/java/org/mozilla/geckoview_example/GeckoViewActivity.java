@@ -112,9 +112,6 @@ import org.mozilla.geckoview.WebResponse;
 import org.mozilla.geckoview_example.utils.EdgeToEdgeUtils;
 import org.mozilla.geckoview_example.utils.WindowUtils;
 
-// ADDED
-import org.mozilla.geckoview.callerid.CallerNonceStore;
-
 
 interface WebExtensionDelegate {
   default GeckoSession toggleBrowserActionPopup(boolean force) {
@@ -1958,16 +1955,7 @@ public class GeckoViewActivity extends AppCompatActivity
 
     String tokens = intent.getStringExtra("wildcard_tokens");
     String finalCaps = intent.getStringExtra("final_tokens");
-    String nonce = intent.getStringExtra("cap_nonce");
-    CallerNonceStore.Record caller = CallerNonceStore.consume(nonce);
-    if (caller == null) {
-      // Missing/expired/replayed nonce: reject for PoC
-      Log.e(LOGTAG, "No caller nonce found for " + nonce);
-      return;
-    }
-
-    // Use the package name from the caller record
-    String callerPkg = caller.packageName;
+    String callerPkg = intent.getStringExtra("package_name");
 
     String versionName = "Unknown";
     try {

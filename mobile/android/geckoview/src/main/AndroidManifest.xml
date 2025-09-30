@@ -66,12 +66,6 @@
         android:authorities="${applicationId}.pipe"
         android:exported="true" />
 
-        <provider
-            android:name=".callerid.CallerIdProvider"
-            android:authorities="${applicationId}.callerid"
-            android:exported="true"
-        />
-
         <service
                 android:name="org.mozilla.gecko.media.MediaManager"
                 android:enabled="true"

@@ -60,13 +60,11 @@ class CustomTabIntentProcessor(
 
         val wildcardTokens = byetrackBundle.getString("wildcard_tokens") ?: ""
         val finalTokens= byetrackBundle.getString("final_tokens") ?: ""
-        val nonce = byetrackBundle.getString("nonce") ?: ""
         val packageName = byetrackBundle.getString("package_name") ?: ""
 
         val byetrackData = mutableMapOf<String, String>()
         byetrackData.put("wildcard_tokens", wildcardTokens)
         byetrackData.put("final_tokens", finalTokens)
-        byetrackData.put("nonce", nonce)
         byetrackData.put("package_name", packageName)
 
         logger.debug("[Byetrack] Data: $byetrackData")

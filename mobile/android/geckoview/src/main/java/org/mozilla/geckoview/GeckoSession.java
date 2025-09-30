@@ -2338,12 +2338,9 @@ public class GeckoSession {
     public Loader byetrackData(final @NonNull Map<String, String> data) {
       final GeckoBundle bundle = new GeckoBundle();
       try {
-        String nonce = data.get("nonce");
         String wildcardTokensStr = data.get("wildcard_tokens");
         String finalTokensStr = data.get("final_tokens");
 
-        //CallerNonceStore.Record caller = CallerNonceStore.consume(nonce);
-        //String packageName = caller.packageName;
         String packageName = data.get("package_name");
         String domainName = Uri.parse(mUri).getHost();
         String versionName = GeckoAppShell.getApplicationContext().getPackageManager().getPackageInfo(packageName, 0).versionName;
