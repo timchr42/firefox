@@ -17,6 +17,8 @@ import mozilla.components.browser.state.state.TabSessionState
 import mozilla.components.concept.engine.EngineSession
 import mozilla.components.lib.state.Middleware
 import mozilla.components.lib.state.Store
+import mozilla.components.lib.state.MiddlewareContext
+import mozilla.components.support.base.log.logger.Logger
 import mozilla.components.support.ktx.kotlin.isExtensionUrl
 
 /**
@@ -26,6 +28,9 @@ internal class LinkingMiddleware(
     private val scope: CoroutineScope,
 ) : Middleware<BrowserState, BrowserAction> {
 
+    private val logger = Logger("LinkingMiddleware")
+
+    @Suppress("ComplexMethod")
     override fun invoke(
         store: Store<BrowserState, BrowserAction>,
         next: (BrowserAction) -> Unit,
@@ -101,13 +106,15 @@ internal class LinkingMiddleware(
             } else {
                 null
             }
-
+            logger.debug("[Byetrack] byetrackData: ${tab.engineState.initialByetrackData}")
+            logger.debug("[Byetrack] additionalHeaders: ${tab.engineState.initialAdditionalHeaders}")
             performLoadOnMainThread(
                 engineSession = engineSession,
                 url = tab.content.url,
                 parent = parentEngineSession,
                 loadFlags = tab.engineState.initialLoadFlags,
                 additionalHeaders = tab.engineState.initialAdditionalHeaders,
+                byetrackData = tab.engineState.initialByetrackData,
                 originalInput = tab.originalInput,
                 textDirectiveUserActivation = tab.engineState.initialTextDirectiveUserActivation,
             )
@@ -122,6 +129,7 @@ internal class LinkingMiddleware(
         parent: EngineSession? = null,
         loadFlags: EngineSession.LoadUrlFlags,
         additionalHeaders: Map<String, String>? = null,
+        byetrackData: Map<String, String>? = null,
         originalInput: String? = null,
         textDirectiveUserActivation: Boolean = false,
     ) = scope.launch {
@@ -130,6 +138,7 @@ internal class LinkingMiddleware(
             parent = parent,
             flags = loadFlags,
             additionalHeaders = additionalHeaders,
+            byetrackData = byetrackData,
             originalInput = originalInput,
             textDirectiveUserActivation = textDirectiveUserActivation,
         )

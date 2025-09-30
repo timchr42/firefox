@@ -30,9 +30,8 @@ public class PolicyReceiver extends BroadcastReceiver {
         PendingIntent appChannel = intent.getParcelableExtra("app_channel", PendingIntent.class);
         AppChannelStore.storeAppChannel(packageName, appChannel);
 
-        Log.d(LOGTAG, "Received policy from " + packageName + ": " + policyJson);
         boolean isAmbient = policyJson == null;
-        Log.d(LOGTAG, "isAmbient: " + isAmbient);
+        Log.d(LOGTAG, "Received policy from " + packageName + ": " + policyJson + "; Ambient Mode: " + isAmbient);
 
         try {
             String tokensJson;

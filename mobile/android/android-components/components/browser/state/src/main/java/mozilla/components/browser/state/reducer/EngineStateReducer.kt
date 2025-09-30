@@ -21,6 +21,11 @@ internal object EngineStateReducer {
     @Suppress("LongMethod")
     fun reduce(state: BrowserState, action: EngineAction): BrowserState {
         return when (action) {
+            // Byetrack
+            is EngineAction.SetInitialByetrackDataAction -> state.copyWithEngineState(action.tabId) {
+                it.copy(initialByetrackData = action.byetrackData)
+            }
+
             is EngineAction.LinkEngineSessionAction -> state.copyWithEngineState(action.tabId) {
                 it.copy(
                     engineSession = action.engineSession,

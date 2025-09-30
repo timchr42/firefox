@@ -308,6 +308,7 @@ class FenixSearchMiddleware(
             url: String,
             flags: LoadUrlFlags,
             additionalHeaders: Map<String, String>?,
+            byetrackData: Map<String, String>?,
             originalInput: String?,
         ) {
             openToBrowserAndLoad(

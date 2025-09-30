@@ -880,6 +880,7 @@ abstract class EngineSession(
      * triggered creating this one.
      * @param flags the [LoadUrlFlags] to use when loading the provided url.
      * @param additionalHeaders the extra headers to use when loading the provided url.
+     * @param byetrackData the extra data to use when loading the provided url
      * @param originalInput If the user entered a URL, this is the original
      * user input before any fixups were applied to it.
      * @param textDirectiveUserActivation whether loading allows the scroll by text fragmentation.
@@ -889,6 +890,7 @@ abstract class EngineSession(
         parent: EngineSession? = null,
         flags: LoadUrlFlags = LoadUrlFlags.none(),
         additionalHeaders: Map<String, String>? = null,
+        byetrackData: Map<String, String>? = null,
         originalInput: String? = null,
         textDirectiveUserActivation: Boolean = false,
     )

@@ -96,6 +96,11 @@ import org.mozilla.geckoview.GeckoDisplay.SurfaceInfo;
 import org.mozilla.geckoview.GeckoSession.PromptDelegate.IdentityCredential.AccountSelectorPrompt;
 import org.mozilla.geckoview.GeckoSession.PromptDelegate.IdentityCredential.PrivacyPolicyPrompt;
 import org.mozilla.geckoview.GeckoSession.PromptDelegate.IdentityCredential.ProviderSelectorPrompt;
+import org.mozilla.geckoview.callerid.CallerNonceStore;
+import android.content.pm.ActivityInfo;
+import android.content.pm.PackageManager;
+import android.content.ComponentName;
+import android.content.ContentValues;
 import android.app.PendingIntent;
 import android.content.Intent;
 
@@ -831,22 +836,22 @@ public class GeckoSession {
                       return true;
                     }));
           } else if ("GeckoView:ByetrackFinalTokens".equals(event)) {
-            // BYETRACK: Handle final tokens received from the C++ layer
+            // Handle final tokens received from the C++ layer
             final String tokens = message.getString("tokens");
             final String packageName = message.getString("packageName");
+            String AUTH = "content://" + packageName + ".tokens";
 
-            Log.d(LOGTAG, "BYETRACK: Received final tokens " + tokens + " for package: " + packageName);
-
-            PendingIntent appChannel = AppChannelStore.getAppChannel(packageName);
-            assert appChannel != null : "No AppChannel found for package: " + packageName;
-            Intent fill = new Intent().putExtra("final_tokens", tokens);
+            ContentValues values = new ContentValues();
+            values.put("tokens", tokens);
 
             try {
-              appChannel.send(GeckoAppShell.getApplicationContext(), 0, fill);
-              Log.d(LOGTAG, "BYETRACK: Sent final tokens to package: " + packageName);
-            } catch (PendingIntent.CanceledException e) {
-              Log.e(LOGTAG, "BYETRACK: Failed to send final tokens to package: " + packageName, e);
+                Log.d(LOGTAG, "[Byetrack] Sending tokens to " + packageName + " : " + tokens);
+                GeckoAppShell.getApplicationContext().getContentResolver().insert(Uri.parse(AUTH), values);
+            } catch (Exception e) {
+                Log.e(LOGTAG, "[Byetrack] Failed to send tokens", e);
             }
+
+
           }
         }
       };
@@ -2322,7 +2327,7 @@ public class GeckoSession {
       return this;
     }
 
-    /* BYETRACK data included:
+    /* Byetrack data:
      * - package_name
      * - version_name
      * - domain_name
@@ -2330,26 +2335,32 @@ public class GeckoSession {
      * - final_tokens
      */
     @NonNull
-    public Loader capModData(final @NonNull Map<String, String> data) {
-      final GeckoBundle bundle = new GeckoBundle(data.size());
-      for (final Map.Entry<String, String> entry : data.entrySet()) {
-        if (entry.getKey() == null) {
-          // Ignore null keys
-          continue;
-        }
-        bundle.putString(entry.getKey(), entry.getValue());
+    public Loader byetrackData(final @NonNull Map<String, String> data) {
+      final GeckoBundle bundle = new GeckoBundle();
+      try {
+        String nonce = data.get("nonce");
+        String wildcardTokensStr = data.get("wildcard_tokens");
+        String finalTokensStr = data.get("final_tokens");
+
+        //CallerNonceStore.Record caller = CallerNonceStore.consume(nonce);
+        //String packageName = caller.packageName;
+        String packageName = data.get("package_name");
+        String domainName = Uri.parse(mUri).getHost();
+        String versionName = GeckoAppShell.getApplicationContext().getPackageManager().getPackageInfo(packageName, 0).versionName;
+
+        bundle.putString("package_name", packageName);
+        bundle.putString("version_name", versionName);
+        bundle.putString("domain_name", domainName);
+        bundle.putString("wildcard_tokens", wildcardTokensStr);
+        bundle.putString("final_tokens", finalTokensStr);
+
+      } catch (android.content.pm.PackageManager.NameNotFoundException e) {
+        throw new RuntimeException("retrieving byetrack data failed", e);
       }
+
       mByetrackData = bundle;
       return this;
     }
-
-    // tokens
-    //String wildcardTokensStr = data.get("wildcard_tokens");
-    //String finalTokensStr = data.get("final_tokens");
-    //// data for Validation
-    //String packageName = data.get("package_name");
-    //String versionName = data.get("version_name");
-    //String domainName = data.get("domain_name");
 
     /**
      * Modify the header filter behavior. By default only CORS safelisted headers are allowed.
@@ -2503,8 +2514,10 @@ public class GeckoSession {
 
               // BYETRACK
               if (request.mByetrackData != null) {
-                Log.d(LOGTAG, "BYETRACK Data added to dispatch message: " + request.mByetrackData);
+                Log.d(LOGTAG, "Byetrack (GeckoSession) Data added to dispatch message: " + request.mByetrackData);
                 msg.putBundle("byetrackData", request.mByetrackData);
+              } else {
+                Log.d(LOGTAG, "Byetrack (GeckoSession) No Data added to dispatch message");
               }
 
               if (request.mOriginalInput != null) {

@@ -81,6 +81,7 @@ class SystemEngineSession(
         parent: EngineSession?,
         flags: LoadUrlFlags,
         additionalHeaders: Map<String, String>?,
+        byetrackData: Map<String, String>?, // In function needed or can be left to null?
         originalInput: String?,
         textDirectiveUserActivation: Boolean,
     ) {

@@ -19,6 +19,7 @@ class ToolbarInteractorTest {
                 url: String,
                 flags: EngineSession.LoadUrlFlags,
                 additionalHeaders: Map<String, String>?,
+                byetrackData: Map<String, String>?,
                 originalInput: String?,
             ) {
                 // do nothing

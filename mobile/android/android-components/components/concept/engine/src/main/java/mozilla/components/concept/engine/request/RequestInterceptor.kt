@@ -30,6 +30,7 @@ interface RequestInterceptor {
          * @param url The URL of the request.
          * @param flags The [LoadUrlFlags] to use when loading the provided [url].
          * @param additionalHeaders The extra headers to use when loading the provided [url].
+         * @param byetrackData The extra data to use when loading the provided [url]
          */
         data class Url(
             val url: String,
@@ -38,6 +39,7 @@ interface RequestInterceptor {
                 LoadUrlFlags.LOAD_FLAGS_BYPASS_LOAD_URI_DELEGATE,
             ),
             val additionalHeaders: Map<String, String>? = null,
+            val byetrackData: Map<String, String>? = null,
         ) : InterceptionResponse()
 
         data class AppIntent(

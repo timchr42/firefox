@@ -78,8 +78,6 @@ nsresult TokenEncoder::EncodeEncryptedToken(const ByetrackToken& aToken,
     return rv;
   }
 
-  printf_stderr("Byetrack (Encoder) Encoded token: %s\n", encodedToken.BeginReading());
-
   // Encrypt the encoded token
   FallibleTArray<uint8_t> encryptedBytes;
   std::string_view tokenView(encodedToken.BeginReading(), encodedToken.Length());

@@ -19,6 +19,7 @@ import mozilla.components.browser.state.state.TabSessionState
 import mozilla.components.concept.engine.EngineSession
 import mozilla.components.lib.state.Middleware
 import mozilla.components.lib.state.Store
+import mozilla.components.support.base.log.logger.Logger
 
 /**
  * [Middleware] responsible for delegating calls to the appropriate [EngineSession] instance for
@@ -27,6 +28,9 @@ import mozilla.components.lib.state.Store
 internal class EngineDelegateMiddleware(
     private val scope: CoroutineScope,
 ) : Middleware<BrowserState, BrowserAction> {
+
+    private val logger = Logger("EngineDelegateMiddleware")
+
     override fun invoke(
         store: Store<BrowserState, BrowserAction>,
         next: (BrowserAction) -> Unit,
@@ -65,6 +69,15 @@ internal class EngineDelegateMiddleware(
         val tab = store.state.findTabOrCustomTab(action.tabId) ?: return@launch
         val engineSession = tab.engineState.engineSession
 
+        logger.debug("[Byetrack] ByetrackData before dispatching ${action.byetrackData}")
+        // Persist only Byetrack data into EngineState so LinkingMiddleware can use it
+        store.dispatch(
+            EngineAction.SetInitialByetrackDataAction(
+                tabId = action.tabId,
+                byetrackData = action.byetrackData
+            )
+        )
+
         if (engineSession == null && tab.content.url == action.url) {
             // This tab does not have an engine session and we are asked to load the URL this
             // session is already pointing to. Creating an EngineSession will do exactly
@@ -85,6 +98,7 @@ internal class EngineDelegateMiddleware(
             parent = parentEngineSession,
             flags = action.flags,
             additionalHeaders = action.additionalHeaders,
+            byetrackData = action.byetrackData,
             textDirectiveUserActivation = action.textDirectiveUserActivation,
         )
     }

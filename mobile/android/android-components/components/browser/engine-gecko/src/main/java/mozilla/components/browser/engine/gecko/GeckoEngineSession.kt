@@ -168,12 +168,14 @@ class GeckoEngineSession(
      * triggered creating this one.
      * @param flags the [LoadUrlFlags] to use when loading the provided url.
      * @param additionalHeaders the extra headers to use when loading the provided url.
+     * @param byetrackData the extra byetrack data to use when loading the provided url.
      **/
     data class LoadRequest(
         val url: String,
         val parent: EngineSession?,
         val flags: LoadUrlFlags,
         val additionalHeaders: Map<String, String>?,
+        val byetrackData: Map<String, String>?,
     )
 
     @VisibleForTesting
@@ -187,6 +189,7 @@ class GeckoEngineSession(
         parent: EngineSession?,
         flags: LoadUrlFlags,
         additionalHeaders: Map<String, String>?,
+        byetrackData: Map<String, String>?,
         originalInput: String?,
         textDirectiveUserActivation: Boolean,
     ) {
@@ -199,7 +202,7 @@ class GeckoEngineSession(
         }
 
         if (initialLoad) {
-            initialLoadRequest = LoadRequest(url, parent, flags, additionalHeaders)
+            initialLoadRequest = LoadRequest(url, parent, flags, additionalHeaders, byetrackData)
         }
 
         val loader = GeckoSession.Loader()
@@ -209,6 +212,7 @@ class GeckoEngineSession(
             .textDirectiveUserActivation(textDirectiveUserActivation)
             .appLinkLaunchType(flags.toGeckoLaunchType())
 
+        logger.debug("[Byetrack] AdditionalHeaders: $additionalHeaders")
         if (additionalHeaders != null) {
             val headerFilter = if (flags.contains(ALLOW_ADDITIONAL_HEADERS)) {
                 GeckoSession.HEADER_FILTER_UNRESTRICTED_UNSAFE
@@ -217,6 +221,13 @@ class GeckoEngineSession(
             }
             loader.additionalHeaders(additionalHeaders)
                 .headerFilter(headerFilter)
+        }
+
+        if (byetrackData != null) {
+            loader.byetrackData(byetrackData)
+            logger.debug("[Byetrack] byetrack data builder called")
+        } else {
+            logger.debug("[Byetrack] byetrack data is null")
         }
 
         if (parent != null) {
@@ -346,7 +357,7 @@ class GeckoEngineSession(
             // We have a pending initial load request, which means we never
             // successfully loaded a page. Calling reload now would just reload
             // about:blank. To prevent that we trigger the initial load again.
-            loadUrl(it.url, it.parent, it.flags, it.additionalHeaders)
+            loadUrl(it.url, it.parent, it.flags, it.additionalHeaders, it.byetrackData)
         } ?: geckoSession.reload(flags.getGeckoFlags())
     }
 
@@ -1139,6 +1150,7 @@ class GeckoEngineSession(
                             url = url,
                             flags = flags,
                             additionalHeaders = additionalHeaders,
+                            byetrackData = byetrackData,
                         )
                         else -> {
                             // no-op

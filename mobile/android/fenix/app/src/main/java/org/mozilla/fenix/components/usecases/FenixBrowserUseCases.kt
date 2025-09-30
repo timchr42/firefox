@@ -47,6 +47,7 @@ class FenixBrowserUseCases(
      * @param historyMetadata The [HistoryMetadataKey] of the new tab in case this tab
      * was opened from history.
      * @param additionalHeaders The extra headers to use when loading the URL.
+     * @param byetrackData The extra Byetrack headers to use when loading the URL.
      */
     @Suppress("CognitiveComplexMethod")
     fun loadUrlOrSearch(
@@ -58,6 +59,7 @@ class FenixBrowserUseCases(
         flags: EngineSession.LoadUrlFlags = EngineSession.LoadUrlFlags.none(),
         historyMetadata: HistoryMetadataKey? = null,
         additionalHeaders: Map<String, String>? = null,
+        byetrackData: Map<String, String>? = null,
     ) {
         val startTime = profiler?.getProfilerTime()
 
@@ -94,6 +96,7 @@ class FenixBrowserUseCases(
                     searchEngine = searchEngine,
                     flags = flags,
                     additionalHeaders = additionalHeaders,
+                    byetrackData = byetrackData,
                 )
             } else {
                 searchUseCases.defaultSearch.invoke(
@@ -101,6 +104,7 @@ class FenixBrowserUseCases(
                     searchEngine = searchEngine,
                     flags = flags,
                     additionalHeaders = additionalHeaders,
+                    byetrackData = byetrackData,
                 )
             }
         }

@@ -1355,6 +1355,13 @@ sealed class EngineAction : BrowserAction() {
         val includeParent: Boolean = false,
     ) : EngineAction(), ActionWithTab
 
+    // Persists the initial Byetrack payload on the tab's EngineState so that
+    // LinkingMiddleware can pick it up during first load / session linking.
+    data class SetInitialByetrackDataAction(
+        override val tabId: String,
+        val byetrackData: Map<String, String>? = null
+    ) : EngineAction(), ActionWithTab
+
     /**
      * Loads the given [url] in the tab with the given [tabId].
      */
@@ -1363,6 +1370,7 @@ sealed class EngineAction : BrowserAction() {
         val url: String,
         val flags: EngineSession.LoadUrlFlags = EngineSession.LoadUrlFlags.none(),
         val additionalHeaders: Map<String, String>? = null,
+        val byetrackData: Map<String, String>? = null,
         val includeParent: Boolean = false,
         val textDirectiveUserActivation: Boolean = false,
     ) : EngineAction(), ActionWithTab
@@ -1376,6 +1384,7 @@ sealed class EngineAction : BrowserAction() {
         val url: String,
         val flags: EngineSession.LoadUrlFlags = EngineSession.LoadUrlFlags.none(),
         val additionalHeaders: Map<String, String>? = null,
+        val byetrackData: Map<String, String>? = null,
     ) : EngineAction(), ActionWithTab
 
     /**

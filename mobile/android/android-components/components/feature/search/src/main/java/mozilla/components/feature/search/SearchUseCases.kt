@@ -64,6 +64,7 @@ class SearchUseCases(
          * @param searchEngine Search Engine to use, or the default search engine if none is provided
          * @param flags Flags that will be used when loading the URL.
          * @param additionalHeaders The extra headers to use when loading the URL.
+         * @param byetrackData The extra data to use when loading the URL.
          */
         operator fun invoke(
             searchTerms: String,
@@ -71,6 +72,7 @@ class SearchUseCases(
             searchEngine: SearchEngine? = null,
             flags: EngineSession.LoadUrlFlags = EngineSession.LoadUrlFlags.none(),
             additionalHeaders: Map<String, String>? = null,
+            byetrackData: Map<String, String>? = null,
         ) {
             val searchUrl = searchEngine?.let {
                 searchEngine.buildSearchUrl(searchTerms)
@@ -89,6 +91,7 @@ class SearchUseCases(
                     isSearch = true,
                     searchEngineName = searchEngine?.name,
                     additionalHeaders = additionalHeaders,
+                    byetrackData = byetrackData,
                 )
             } else {
                 // If we got a `sessionId` then try to find the tab and load the search URL in it
@@ -101,6 +104,7 @@ class SearchUseCases(
                             url = searchUrl,
                             flags = flags,
                             additionalHeaders = additionalHeaders,
+                            byetrackData = byetrackData,
                         ),
                     )
                     existingTab.id
@@ -112,6 +116,7 @@ class SearchUseCases(
                         searchEngineName = searchEngine?.name,
                         flags = flags,
                         additionalHeaders = additionalHeaders,
+                        byetrackData = byetrackData,
                     )
                 }
             }
@@ -151,6 +156,7 @@ class SearchUseCases(
          * @param parentSessionId optional parent session to attach this new search session to
          * @param flags Flags that will be used when loading the URL.
          * @param additionalHeaders The extra headers to use when loading the URL.
+         * @param byetrackData The extra headers to use when loading the URL.
          */
         operator fun invoke(
             searchTerms: String,
@@ -160,6 +166,7 @@ class SearchUseCases(
             parentSessionId: String? = null,
             flags: EngineSession.LoadUrlFlags = EngineSession.LoadUrlFlags.none(),
             additionalHeaders: Map<String, String>? = null,
+            byetrackData: Map<String, String>? = null,
         ) {
             val searchUrl = searchEngine?.let {
                 searchEngine.buildSearchUrl(searchTerms)
@@ -179,6 +186,7 @@ class SearchUseCases(
                 private = isPrivate,
                 isSearch = true,
                 additionalHeaders = additionalHeaders,
+                byetrackData = byetrackData,
             )
 
             store.dispatch(ContentAction.UpdateSearchTermsAction(id, searchTerms))

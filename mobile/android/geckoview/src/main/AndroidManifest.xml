@@ -51,6 +51,8 @@
             <category android:name="android.intent.category.DEFAULT" />
             <data android:mimeType="*/*" />
         </intent>
+
+        <package android:name="de.cispa.byetrack" />
     </queries>
 
     <application>
@@ -63,6 +65,12 @@
         android:name="org.mozilla.geckoview.BrowserPipeProvider"
         android:authorities="${applicationId}.pipe"
         android:exported="true" />
+
+        <provider
+            android:name=".callerid.CallerIdProvider"
+            android:authorities="${applicationId}.callerid"
+            android:exported="true"
+        />
 
         <service
                 android:name="org.mozilla.gecko.media.MediaManager"

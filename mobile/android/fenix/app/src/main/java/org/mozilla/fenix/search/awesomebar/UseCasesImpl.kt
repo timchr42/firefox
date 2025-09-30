@@ -21,6 +21,7 @@ internal class AwesomeBarLoadUrlUseCase(
         url: String,
         flags: EngineSession.LoadUrlFlags,
         additionalHeaders: Map<String, String>?,
+        byetrackData: Map<String, String>?,
         originalInput: String?,
     ) {
         interactor.onUrlTapped(url, flags)

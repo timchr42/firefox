@@ -15,6 +15,7 @@ import mozilla.components.browser.state.state.createTab
 import mozilla.components.browser.state.store.BrowserStore
 import mozilla.components.concept.engine.EngineSession.LoadUrlFlags
 import mozilla.components.concept.engine.translate.TranslationOptions
+import mozilla.components.support.base.log.logger.Logger
 
 /**
  * Contains use cases related to the session feature.
@@ -37,6 +38,7 @@ class SessionUseCases(
             url: String,
             flags: LoadUrlFlags = LoadUrlFlags.none(),
             additionalHeaders: Map<String, String>? = null,
+            byetrackData: Map<String, String>? = null,
             originalInput: String? = null,
         )
     }
@@ -45,6 +47,8 @@ class SessionUseCases(
         private val store: BrowserStore,
         private val onNoTab: (String) -> TabSessionState,
     ) : LoadUrlUseCase {
+
+        val logger = Logger("DefaultLoadUrlUseCase")
 
         /**
          * Loads the provided URL using the currently selected session. If
@@ -61,9 +65,11 @@ class SessionUseCases(
             url: String,
             flags: LoadUrlFlags,
             additionalHeaders: Map<String, String>?,
+            byetrackData: Map<String, String>?,
             originalInput: String?,
         ) {
-            this.invoke(url, store.state.selectedTabId, flags, additionalHeaders, originalInput)
+            logger.debug("[Byetrack] invoke(...) with byetrackData: $byetrackData")
+            this.invoke(url, store.state.selectedTabId, flags, additionalHeaders, byetrackData, originalInput)
         }
 
         /**
@@ -83,8 +89,10 @@ class SessionUseCases(
             sessionId: String? = null,
             flags: LoadUrlFlags = LoadUrlFlags.none(),
             additionalHeaders: Map<String, String>? = null,
+            byetrackData: Map<String, String>? = null,
             originalInput: String? = null,
         ) {
+            logger.debug("[Byetrack] inoked(...), byetrackData: $byetrackData")
             val loadSessionId = sessionId
                 ?: store.state.selectedTabId
                 ?: onNoTab.invoke(url).id
@@ -95,10 +103,12 @@ class SessionUseCases(
             // If we already have an engine session load Url directly to prevent
             // context switches.
             if (engineSession != null) {
+                logger.debug("[Byetrack] loadUrl on session executed and dispatched to store: $byetrackData")
                 engineSession.loadUrl(
                     url = url,
                     flags = flags,
                     additionalHeaders = additionalHeaders,
+                    byetrackData = byetrackData,
                     originalInput = originalInput,
                 )
                 store.dispatch(
@@ -107,15 +117,19 @@ class SessionUseCases(
                         url,
                         flags,
                         additionalHeaders,
+                        byetrackData
                     ),
                 )
             } else {
+                // This branch executed!
+                logger.debug("[Byetrack] loadUrlAction dispatched to store: $byetrackData")
                 store.dispatch(
                     EngineAction.LoadUrlAction(
                         loadSessionId,
                         url,
                         flags,
                         additionalHeaders,
+                        byetrackData
                     ),
                 )
             }

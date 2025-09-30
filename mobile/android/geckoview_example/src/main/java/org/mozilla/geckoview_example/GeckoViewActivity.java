@@ -113,7 +113,7 @@ import org.mozilla.geckoview_example.utils.EdgeToEdgeUtils;
 import org.mozilla.geckoview_example.utils.WindowUtils;
 
 // ADDED
-import org.mozilla.geckoview_example.callerid.CallerNonceStore;
+import org.mozilla.geckoview.callerid.CallerNonceStore;
 
 
 interface WebExtensionDelegate {
@@ -1918,34 +1918,29 @@ public class GeckoViewActivity extends AppCompatActivity
               new GeckoSession.Loader()
                   .uri(uri.toString())
                   .flags(GeckoSession.LOAD_FLAGS_EXTERNAL)
-                  .capModData(getCapModData(intent))
+                  .byetrackData(getByetrackData(intent))
                   ); // ADDED: store data as addiditional Header in GeckoSession
     }
   }
 
-  private Map<String, String> getCapModData(final Intent intent) {
-    String tokens = intent.getStringExtra("wildcard_tokens");
-    String finalCaps = intent.getStringExtra("final_tokens");
-    String nonce = intent.getStringExtra("cap_nonce");
-    CallerNonceStore.Record caller = CallerNonceStore.consume(nonce);
-    String domainName = intent.getData().getHost();
-    String versionName = "";
-    try {
-      versionName = getPackageManager().getPackageInfo(caller.packageName, 0).versionName;
-    } catch (PackageManager.NameNotFoundException e) {
-      throw new RuntimeException("Package not found: " + caller.packageName, e);
+  private Map<String, String> getByetrackData(final Intent intent) {
+    Bundle pairs = intent.getBundleExtra("byetrack_data");
+    Map<String, String> byetrackData = new HashMap<>();
+    if (pairs != null) {
+      for (String key : pairs.keySet()) {
+        String value = pairs.getString(key);
+        if (value != null) {
+          byetrackData.put(key, value);
+        }
+      }
     }
 
-    Map<String, String> capModData = new HashMap<>();
-    capModData.put("wildcard_tokens", tokens);
-    capModData.put("final_tokens", finalCaps);
-    capModData.put("package_name", caller.packageName);
-    capModData.put("version_name", versionName);
-    capModData.put("domain_name", domainName);
-
-    Log.d(LOGTAG, "Forward Intent Data to GeckoSession: " + capModData);
-    return capModData;
-  }
+    Log.d(LOGTAG, "Forward Intent Data to GeckoSession: " + byetrackData);
+    if (byetrackData.isEmpty())
+        return null;
+    else
+        return byetrackData;
+    }
 
   // DEBUGGING FUNCTION
   private void logAndInterceptIntent(final Intent intent, final String source) {

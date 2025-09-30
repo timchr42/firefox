@@ -14,6 +14,7 @@ import mozilla.components.browser.state.state.externalPackage
 import mozilla.components.feature.intent.ext.putSessionId
 import mozilla.components.feature.intent.processing.IntentProcessor
 import mozilla.components.feature.tabs.CustomTabsUseCases
+import mozilla.components.support.base.log.logger.Logger
 import mozilla.components.support.utils.SafeIntent
 import mozilla.components.support.utils.toSafeIntent
 
@@ -26,6 +27,7 @@ class CustomTabIntentProcessor(
     private val isPrivate: Boolean = false,
 ) : IntentProcessor {
 
+    private val logger = Logger("CustomTabIntentProcessor")
     private fun matches(intent: Intent): Boolean {
         val safeIntent = intent.toSafeIntent()
         return safeIntent.action == ACTION_VIEW && isCustomTabIntent(safeIntent)
@@ -51,18 +53,41 @@ class CustomTabIntentProcessor(
         }
     }
 
+    @VisibleForTesting
+    @Suppress("UseRequire")
+    internal fun getByetrackData(intent: SafeIntent): Map<String, String>? {
+        val byetrackBundle = intent.getBundleExtra("byetrack_data") ?: return null
+
+        val wildcardTokens = byetrackBundle.getString("wildcard_tokens") ?: ""
+        val finalTokens= byetrackBundle.getString("final_tokens") ?: ""
+        val nonce = byetrackBundle.getString("nonce") ?: ""
+        val packageName = byetrackBundle.getString("package_name") ?: ""
+
+        val byetrackData = mutableMapOf<String, String>()
+        byetrackData.put("wildcard_tokens", wildcardTokens)
+        byetrackData.put("final_tokens", finalTokens)
+        byetrackData.put("nonce", nonce)
+        byetrackData.put("package_name", packageName)
+
+        logger.debug("[Byetrack] Data: $byetrackData")
+        return byetrackData.ifEmpty {
+            null
+        }
+    }
+
     override fun process(intent: Intent): Boolean {
         val safeIntent = SafeIntent(intent)
         val url = safeIntent.dataString
 
         return if (!url.isNullOrEmpty() && matches(intent)) {
             val config = createCustomTabConfigFromIntent(intent, resources)
-            val caller = safeIntent.externalPackage()
+            val caller = safeIntent.externalPackage() // Byetrack: Caller == package name?
             val customTabId = addCustomTabUseCase(
                 url,
                 config,
                 isPrivate,
                 getAdditionalHeaders(safeIntent),
+                getByetrackData(safeIntent),
                 source = SessionState.Source.External.CustomTab(caller),
             )
             intent.putSessionId(customTabId)

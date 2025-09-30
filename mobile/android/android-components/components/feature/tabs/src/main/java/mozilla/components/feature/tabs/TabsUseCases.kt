@@ -136,6 +136,7 @@ class TabsUseCases(
             url: String,
             flags: LoadUrlFlags,
             additionalHeaders: Map<String, String>?,
+            byetrackData: Map<String, String>?,
             originalInput: String?,
         ) {
             this.invoke(
@@ -168,6 +169,7 @@ class TabsUseCases(
          * @param isSearch whether or not the provided URL is the result of a search.
          * @param searchEngineName The search engine name.
          * @param additionalHeaders The extra headers to use when loading the provided URL.
+         * @param byetrackData The extra data to use when loading the provided URL.
          * @param originalInput If the user entered a URL, this is the
          * original user input before any fixups were applied to it.
          * @param textDirectiveUserActivation whether loading allows the scroll by text fragmentation.
@@ -189,6 +191,7 @@ class TabsUseCases(
             isSearch: Boolean = false,
             searchEngineName: String? = null,
             additionalHeaders: Map<String, String>? = null,
+            byetrackData: Map<String, String>? = null,
             originalInput: String? = null,
             textDirectiveUserActivation: Boolean = false,
         ): String {
@@ -203,6 +206,7 @@ class TabsUseCases(
                 searchTerms = searchTerms,
                 initialLoadFlags = flags,
                 initialAdditionalHeaders = additionalHeaders,
+                initialByetrackData = byetrackData,
                 historyMetadata = historyMetadata,
                 desktopMode = store.state.desktopMode,
                 originalInput = originalInput,
@@ -222,6 +226,7 @@ class TabsUseCases(
                         url = url,
                         flags = flags,
                         additionalHeaders = additionalHeaders,
+                        byetrackData = byetrackData,
                         includeParent = true,
                         textDirectiveUserActivation = textDirectiveUserActivation,
                     ),

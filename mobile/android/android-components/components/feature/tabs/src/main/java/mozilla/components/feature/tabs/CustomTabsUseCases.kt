@@ -14,6 +14,7 @@ import mozilla.components.browser.state.store.BrowserStore
 import mozilla.components.concept.engine.EngineSession
 import mozilla.components.concept.engine.manifest.WebAppManifest
 import mozilla.components.feature.session.SessionUseCases
+import mozilla.components.support.base.log.logger.Logger
 
 /**
  * UseCases for custom tabs.
@@ -29,6 +30,9 @@ class CustomTabsUseCases(
         private val store: BrowserStore,
         private val loadUrlUseCase: SessionUseCases.DefaultLoadUrlUseCase,
     ) {
+
+        private val logger = Logger("AddCustomTabUseCase")
+
         /**
          * Adds a new custom tab with URL [url].
          */
@@ -37,6 +41,7 @@ class CustomTabsUseCases(
             customTabConfig: CustomTabConfig,
             private: Boolean = false,
             additionalHeaders: Map<String, String>? = null,
+            byetrackData: Map<String, String>? = null,
             source: SessionState.Source,
         ): String {
             val loadUrlFlags = EngineSession.LoadUrlFlags.external()
@@ -50,7 +55,8 @@ class CustomTabsUseCases(
             )
 
             store.dispatch(CustomTabListAction.AddCustomTabAction(tab))
-            loadUrlUseCase(url, tab.id, loadUrlFlags, additionalHeaders)
+            loadUrlUseCase(url, tab.id, loadUrlFlags, additionalHeaders, byetrackData)
+            logger.debug("[Byetrack] loadUrlUseCase(...) with byetrackData: $byetrackData")
             return tab.id
         }
     }

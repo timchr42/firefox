@@ -306,7 +306,7 @@ export class GeckoViewNavigation extends GeckoViewModule {
           wildcardTokensBlob,
           packageName: this.packageName,
           versionName,
-          domainName
+          domainName,
         });
         break;
       }
@@ -794,11 +794,14 @@ export class GeckoViewNavigation extends GeckoViewModule {
   // BYETRACK: nsIObserver event handler
   observe(aSubject, aTopic, aData) {
     debug`observe: ${aTopic}`;
-    if (aTopic !== "byetrack-final-tokens") return;
+    if (aTopic !== "byetrack-final-tokens") {
+      return;
+    }
     debug`Received byetrack final tokens json map: ${aData}`;
 
     const [bcStr, batchStr] = String(aData || "").split(":");
-    const bcId = Number(bcStr || 0), batchId = Number(batchStr || 0);
+    const bcId = Number(bcStr || 0),
+      batchId = Number(batchStr || 0);
     const key = `${bcId}:${batchId}`;
 
     // Use global seen set to prevent duplicates across all instances
@@ -813,14 +816,13 @@ export class GeckoViewNavigation extends GeckoViewModule {
     //try { domainMap = JSON.parse(json); } catch (_) {}
 
     debug`Sending tokens for package: ${this.packageName}`;
-    
+
     // Send the data to GeckoSession via event dispatcher
     this.eventDispatcher.sendRequest({
       type: "GeckoView:ByetrackFinalTokens",
       tokens: json,
-      packageName: this.packageName
+      packageName: this.packageName,
     });
-
   }
 }
 

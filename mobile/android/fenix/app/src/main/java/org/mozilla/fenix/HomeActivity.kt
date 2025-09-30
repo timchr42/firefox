@@ -1265,6 +1265,7 @@ open class HomeActivity : LocaleAwareAppCompatActivity(), NavHostActivity {
      * @param historyMetadata The [HistoryMetadataKey] of the new tab in case this tab
      * was opened from history.
      * @param additionalHeaders The extra headers to use when loading the URL.
+     * @param byetrackData The extra data to use when loading the URL.
      */
     @Deprecated(
         message = "Use NavController.openToBrowser() and " +
@@ -1281,6 +1282,7 @@ open class HomeActivity : LocaleAwareAppCompatActivity(), NavHostActivity {
         flags: EngineSession.LoadUrlFlags = EngineSession.LoadUrlFlags.none(),
         historyMetadata: HistoryMetadataKey? = null,
         additionalHeaders: Map<String, String>? = null,
+        byetrackData: Map<String, String>? = null,
     ) {
         openToBrowser(from, customTabSessionId)
 
@@ -1293,6 +1295,7 @@ open class HomeActivity : LocaleAwareAppCompatActivity(), NavHostActivity {
             flags = flags,
             historyMetadata = historyMetadata,
             additionalHeaders = additionalHeaders,
+            byetrackData = byetrackData,
         )
     }
 
