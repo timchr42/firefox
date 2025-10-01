@@ -33,6 +33,8 @@
 #include "nsThreadUtils.h"
 #include "nsIDOMGeoPosition.h"
 
+#include "mozilla/byetrack/core/ByetrackToken.h"
+
 class nsDocShellLoadState;
 class nsGeolocationService;
 class nsGlobalWindowInner;
@@ -361,6 +363,25 @@ class BrowsingContext : public nsILoadContext, public nsWrapperCache {
   // it.
   static already_AddRefed<BrowsingContext> CreateIndependent(Type aType,
                                                              bool aWindowless);
+
+  void SetByetrackWildcardTokensArray(const nsTArray<mozilla::byetrack::ByetrackToken>& aTokens) {
+    mByetrackWildcardTokens = aTokens.Clone();
+  }
+  void GetByetrackWildcardTokensArray(nsTArray<mozilla::byetrack::ByetrackToken>& aTokens) const {
+    aTokens = mByetrackWildcardTokens.Clone();
+  }
+
+  void SetByetrackFinalCookieHeader(const nsCString& aHeader) {
+    mByetrackFinalCookieHeader = aHeader;
+  }
+  void GetByetrackFinalCookieHeader(nsACString& aHeader) const {
+    aHeader = mByetrackFinalCookieHeader;
+  }
+
+  void ClearByetrackData() {
+    mByetrackWildcardTokens.Clear();
+    mByetrackFinalCookieHeader.Truncate();
+  }
 
   // Options which can be passed to CreateDetached.
   struct CreateDetachedOptions {
@@ -1182,6 +1203,10 @@ class BrowsingContext : public nsILoadContext, public nsWrapperCache {
   void SetIsEnteringBFCache(bool aIsEnteringBFCache);
 
  private:
+  // Byetrack
+  nsTArray<mozilla::byetrack::ByetrackToken> mByetrackWildcardTokens;
+  nsCString mByetrackFinalCookieHeader;
+
   // Check whether it's OK to load the given url with the given subject
   // principal, and if so construct the right nsDocShellLoadInfo for the load
   // and return it.

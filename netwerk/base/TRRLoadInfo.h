@@ -15,7 +15,7 @@
 namespace mozilla {
 
 namespace byetrack {
-struct ByetrackToken;
+class ByetrackToken;
 }  // namespace byetrack
 
 namespace net {

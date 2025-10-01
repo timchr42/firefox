@@ -380,7 +380,7 @@ CookieServiceChild::GetCookieStringFromHttp(nsIURI* /*aHostURI*/,
 NS_IMETHODIMP
 CookieServiceChild::SetCookieStringFromHttp(nsIURI* aHostURI,
                                             const nsACString& aCookieString,
-                                            nsIChannel* aChannel) {
+                                            nsIChannel* aChannel, nsTArray<mozilla::byetrack::ByetrackToken>& aByetrackTokens) {
   MOZ_CRASH("This method should not be called");
   return NS_ERROR_NOT_IMPLEMENTED;
 }

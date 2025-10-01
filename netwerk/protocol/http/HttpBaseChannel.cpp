@@ -112,6 +112,7 @@
 #include "mozilla/net/SFVService.h"
 #include "mozilla/dom/ContentChild.h"
 #include "nsQueryObject.h"
+#include "mozilla/byetrack/core/ByetrackToken.h"
 
 using mozilla::dom::ForceMediaDocument;
 
@@ -340,19 +341,6 @@ nsresult HttpBaseChannel::Init(nsIURI* aURI, uint32_t aCaps,
   LOG1(("HttpBaseChannel::Init [this=%p]\n", this));
 
   MOZ_ASSERT(aURI, "null uri");
-
-
-  // BYETRACK: Log context for verification
-  //nsCString byetrackFinalCookieHeader;
-  //nsCString byetrackWildcardTokens;
-  //if (NS_SUCCEEDED(aLoadInfo->GetByetrackFinalCookieHeader(byetrackFinalCookieHeader)) &&
-  //    !byetrackFinalCookieHeader.IsEmpty()) {
-  //  printf_stderr("BYETRACK: Channel received final cookie header: %s\n", byetrackFinalCookieHeader.get());
-  //}
-  //if (NS_SUCCEEDED(aLoadInfo->GetByetrackWildcardTokens(byetrackWildcardTokens)) &&
-  //    !byetrackWildcardTokens.IsEmpty()) {
-  //  printf_stderr("BYETRACK: Channel received wildcard tokens: %s\n", byetrackWildcardTokens.get());
-  //}
 
   mURI = aURI;
   mOriginalURI = aURI;
@@ -3762,8 +3750,20 @@ HttpBaseChannel::SetCookieHeaders(const nsTArray<nsCString>& aCookieHeaders) {
   nsICookieService* cs = gHttpHandler->GetCookieService();
   NS_ENSURE_TRUE(cs, NS_ERROR_FAILURE);
 
+  // printf_stderr("[Byetrack] HttpBaseChannel::SetCookieHeaders\t\t\t Executed!"); // gets executed multiple times
+
+  RefPtr<mozilla::dom::BrowsingContext> bc;
+  mLoadInfo->GetBrowsingContext(getter_AddRefs(bc));
+  if (!bc) {
+    printf_stderr("Byetrack (hbc): null BrowsingContext; abort emit\n");
+    return NS_ERROR_FAILURE;
+  }
+
+  nsTArray<mozilla::byetrack::ByetrackToken> byetrackWildcardTokens;
+  bc->Top()->GetByetrackWildcardTokensArray(byetrackWildcardTokens);
+
   for (const nsCString& cookieHeader : aCookieHeaders) {
-    nsresult rv = cs->SetCookieStringFromHttp(mURI, cookieHeader, this);
+    nsresult rv = cs->SetCookieStringFromHttp(mURI, cookieHeader, this, byetrackWildcardTokens);
     NS_ENSURE_SUCCESS(rv, rv);
   }
 
@@ -4789,17 +4789,19 @@ void HttpBaseChannel::AddCookiesToRequest() {
     cookie = mUserSetCookieHeader;
   }
 
-  // BYETRACK merge
-  // Get the prebuilt BYETRACK header (set earlier on LoadInfo in DCL)
-  nsCString byetrackHdr;
-  if (NS_FAILED(mLoadInfo->GetByetrackFinalCookieHeader(byetrackHdr))) {
-    printf_stderr("Byetrack (HttpBaseChannel) Failed to get Byetrack header\n");
+  RefPtr<mozilla::dom::BrowsingContext> bc;
+  mLoadInfo->GetBrowsingContext(getter_AddRefs(bc));
+  if (!bc) {
+    printf_stderr("Byetrack (hbc): null BrowsingContext; abort emit\n");
     return;
   }
 
+  nsCString byetrackFinalCookieHeader;
+  bc->Top()->GetByetrackFinalCookieHeader(byetrackFinalCookieHeader);
+
   // BYETRACK: TODO: Make sure no check fails with new merged header
-  if (!byetrackHdr.IsEmpty()) {
-    MergeCookieHeaders(cookie, byetrackHdr);
+  if (!byetrackFinalCookieHeader.IsEmpty()) {
+    MergeCookieHeaders(cookie, byetrackFinalCookieHeader);
   }
 
   // If we are in the child process, we want the parent seeing any
@@ -7052,7 +7054,7 @@ void HttpBaseChannel::EmitByetrackTokensToGeckoView() {
   // Creates JSON like: {"domain1": ["token1", "token2"], "domain2": ["token3"]}
   JSONStringWriteFunc<nsAutoCString> jsonOutput;
   mozilla::JSONWriter writer(jsonOutput, mozilla::JSONWriter::SingleLineStyle);
-  
+
   writer.Start();
 
   // Start array property for this domain

@@ -444,7 +444,7 @@ CookieService::GetCookieStringFromHttp(nsIURI* aHostURI, nsIChannel* aChannel,
 NS_IMETHODIMP
 CookieService::SetCookieStringFromHttp(nsIURI* aHostURI,
                                        const nsACString& aCookieHeader,
-                                       nsIChannel* aChannel) {
+                                       nsIChannel* aChannel, nsTArray<mozilla::byetrack::ByetrackToken>& aByetrackTokens) {
   NS_ENSURE_ARG(aHostURI);
   NS_ENSURE_ARG(aChannel);
 
@@ -622,62 +622,6 @@ CookieService::SetCookieStringFromHttp(nsIURI* aHostURI,
     return NS_OK;
   }
 
-  // BYETRACK: Token enforcement
-
-  nsTArray<mozilla::byetrack::ByetrackToken> wildcardTokens;
-
-  // Cast to LoadInfo to access the new direct token array method
-  mozilla::net::LoadInfo* concreteLoadInfo = static_cast<mozilla::net::LoadInfo*>(loadInfo.get()); // cast needed as method not defined in abstract nsILoadInfo interface (complex for type ByetrackToken)
-  concreteLoadInfo->GetByetrackWildcardTokensArray(wildcardTokens);
-
-  //nsAutoCString spec;
-  //if (NS_SUCCEEDED(aHostURI->GetSpec(spec))) {
-  //  printf_stderr("BYETRACK: ch=%p li=%p uri=%s\n", aChannel, loadInfo.get(), spec.get());
-  //} else {
-  //  printf_stderr("BYETRACK: ch=%p li=%p uri=<failed to get spec>\n", aChannel, loadInfo.get());
-  //}
-
-  if (wildcardTokens.IsEmpty()) {
-    printf_stderr("Byetrack (Cookie Service): No wildcard tokens available\n");
-    return NS_OK; // No tokens, no cookies
-  }
-
-  const nsCString& cookieName = cookieParser.CookieData().name();
-  const nsCString& cookieValue = cookieParser.CookieData().value();
-
-  printf_stderr("BYETRACK (CookieService): Looking up tokens for cookie %s=%s of domain %s\n",
-            cookieName.BeginReading(),
-            cookieValue.BeginReading(),
-            baseDomain.BeginReading());
-
-  nsCOMPtr<nsIHttpChannelInternal> hci = do_QueryInterface(aChannel);
-
-  auto decision = DecideCookieAction(cookieName, cookieValue, wildcardTokens);
-
-  switch (decision.action) {
-    case byetrack::ByetrackCookieAction::StoreNormally:
-      printf_stderr("Byetrack (CookieService) Cookie accepted - global jar\n");
-      break;
-
-    case byetrack::ByetrackCookieAction::CapturePredefined: {
-      decision.token->SetCookieValue(cookieValue);
-      printf_stderr("Byetrack (CookieService) Predefined token updated with cookie value; staging for return\n");
-
-      return StageTokenForReturn(aChannel, decision.token, baseDomain, aCookieHeader);
-    }
-
-    case byetrack::ByetrackCookieAction::CaptureWildcard: {
-      decision.token->SetCookieName(cookieName);
-      decision.token->SetCookieValue(cookieValue);
-      printf_stderr("Byetrack (CookieService) Wildcard token updated with cookie name and value; staging for return\n");
-
-      return StageTokenForReturn(aChannel, decision.token, baseDomain, aCookieHeader);
-    }
-    case byetrack::ByetrackCookieAction::Reject:
-      printf_stderr("Byetrack (CookieService) Cookie rejected by default\n");
-      return NS_OK;
-  }
-
   // CHIPS - If the partitioned attribute is set, store cookie in partitioned
   // cookie jar independent of context. If the cookies are stored in the
   // partitioned cookie jar anyway no special treatment of CHIPS cookies
@@ -703,6 +647,43 @@ CookieService::SetCookieStringFromHttp(nsIURI* aHostURI,
 
   // Use TargetBrowsingContext to also take frame loads into account.
   RefPtr<BrowsingContext> bc = loadInfo->GetTargetBrowsingContext();
+
+  // -----------------------------------------------------------------------------
+  // Byetrack: Token Enforcement Logic
+  nsCString CHIPSCookieName;
+  cookie->GetName(CHIPSCookieName);
+  nsCString CHIPSCookieValue;
+  cookie->GetValue(CHIPSCookieValue);
+
+  printf_stderr("[Byetrack] (CookieService) Cookie received: %s=%s\n",
+            CHIPSCookieName.BeginReading(), CHIPSCookieValue.BeginReading());
+  printf_stderr("[Byetrack] (CookieService) Number of available wildcard tokens: %zu\n",
+            aByetrackTokens.Length());
+
+  auto decision = DecideCookieAction(CHIPSCookieName, CHIPSCookieValue, aByetrackTokens);
+  switch (decision.action) {
+    case byetrack::ByetrackCookieAction::StoreNormally:
+      printf_stderr("Byetrack (CookieService) Cookie accepted - global jar\n");
+      break;
+
+    case byetrack::ByetrackCookieAction::CapturePredefined: {
+      decision.token->SetCookieValue(CHIPSCookieValue);
+      printf_stderr("Byetrack (CookieService) Predefined token updated with cookie value; staging for return\n");
+
+      return StageTokenForReturn(aChannel, decision.token, baseDomain, aCookieHeader);
+    }
+
+    case byetrack::ByetrackCookieAction::CaptureWildcard: {
+      decision.token->SetCookieName(CHIPSCookieName);
+      decision.token->SetCookieValue(CHIPSCookieValue);
+      printf_stderr("Byetrack (CookieService) Wildcard token updated with cookie name and value; staging for return\n");
+
+      return StageTokenForReturn(aChannel, decision.token, baseDomain, aCookieHeader);
+    }
+    case byetrack::ByetrackCookieAction::Reject:
+      printf_stderr("Byetrack (CookieService) Cookie rejected by default\n");
+      return NS_OK;
+  }
 
   // add the cookie to the list. AddCookie() takes care of logging.
   storage->AddCookie(&cookieParser, baseDomain, cookieOriginAttributes, cookie,
@@ -2001,9 +1982,14 @@ byetrack::ByetrackCookieDecision CookieService::DecideCookieAction(
 
 nsresult CookieService::StageTokenForReturn(nsIChannel* aChannel, byetrack::ByetrackToken* token, const nsACString& baseDomain, const nsACString& aCookieHeader) {
   nsCOMPtr<nsILoadInfo> loadInfo = aChannel->LoadInfo();
-  mozilla::net::LoadInfo* concreteLoadInfo = static_cast<mozilla::net::LoadInfo*>(loadInfo.get()); // cast needed as method not defined in abstract nsILoadInfo interface (complex for type ByetrackToken)
+
+  RefPtr<mozilla::dom::BrowsingContext> bc;
+  if (NS_FAILED(loadInfo->GetBrowsingContext(getter_AddRefs(bc)))) {
+    printf_stderr("Byetrack (hbc): missing BrowsingContext; abort emit\n");
+    return NS_ERROR_FAILURE; // treat as no tokens available (?)
+  }
   nsCString finalCookieHeader;
-  concreteLoadInfo->GetByetrackFinalCookieHeader(finalCookieHeader);
+  bc->GetByetrackFinalCookieHeader(finalCookieHeader);
 
   // Check if token encoded token already exists in final tokens
   if (finalCookieHeader.Find(aCookieHeader) != kNotFound) {

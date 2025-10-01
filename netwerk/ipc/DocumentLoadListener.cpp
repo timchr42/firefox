@@ -146,39 +146,16 @@ static auto SecurityFlagsForLoadInfo(nsDocShellLoadState* aLoadState)
 
   return securityFlags;
 }
+static void ProcessTokenBlob(const nsACString& aTokenBlob, const nsACString& package, const nsACString& version, const nsACString& domain, nsTArray<ByetrackToken>& aTokens) {
+  aTokens.Clear();
 
-static void ApplyByetrackFromLoadStateToLoadInfo(nsDocShellLoadState* aLoadState, mozilla::net::LoadInfo* aLoadInfo) {
-  // Check if already been set previously
-  nsCString headerAlready;
-  nsTArray<ByetrackToken> tokensAlready;
-  aLoadInfo->GetByetrackWildcardTokensArray(tokensAlready);
-  aLoadInfo->GetByetrackFinalCookieHeader(headerAlready);
-  if (!headerAlready.IsEmpty() || !tokensAlready.IsEmpty()) {
-    printf_stderr("Byetrack (Listener) Already set tokens or cookie header => Skip\n");
-    return;
-  }
-  printf_stderr("Byetrack (Listener) No already existing tokens or cookie header found => Do Parsing\n");
-
-  // Get the token blobs and domain info from load state
-  const nsCString& finalTokensBlob = aLoadState->FinalTokensBlob();
-  const nsCString& wildcardTokensBlob = aLoadState->WildcardTokensBlob();
-  const nsCString& domain = aLoadState->DomainName();
-  const nsCString& package = aLoadState->PackageName();
-  const nsCString& version = aLoadState->VersionName();
-
-  // Parse final tokens
-  nsTArray<ByetrackToken> finalTokens;
-  
-  // Parse token blob to get individual token strings
-  nsTArray<nsCString> finalTokenStrings;
-  if (NS_FAILED(mozilla::byetrack::TokenParser::ParseTokenBlob(finalTokensBlob, finalTokenStrings))) {
-    printf_stderr("Byetrack (Listener) Failed to parse final token blob\n");
+  nsTArray<nsCString> tokenStrings;
+  if (NS_FAILED(mozilla::byetrack::TokenParser::ParseTokenBlob(aTokenBlob, tokenStrings))) {
+    printf_stderr("Byetrack (Listener) Failed to parse token blob\n");
     return;
   }
 
-  // Process each token string
-  for (const auto& tokenStr : finalTokenStrings) {
-    // Step 2a: Decode the token string
+  for (const auto& tokenStr : tokenStrings) {
     nsCString decodedJson;
     nsresult decodeRv = mozilla::byetrack::TokenEncoder::DecodeEncryptedTokenString(tokenStr, decodedJson);
     if (NS_FAILED(decodeRv)) {
@@ -186,7 +163,6 @@ static void ApplyByetrackFromLoadStateToLoadInfo(nsDocShellLoadState* aLoadState
       continue;
     }
 
-    // Parse the decoded JSON to ByetrackToken
     ByetrackToken token;
     if (NS_FAILED(mozilla::byetrack::TokenParser::ParseSingleToken(decodedJson, token))) {
       printf_stderr("Byetrack (Listener) Failed to parse token from JSON\n");
@@ -199,62 +175,55 @@ static void ApplyByetrackFromLoadStateToLoadInfo(nsDocShellLoadState* aLoadState
                     token.destinationDomain.BeginReading());
       continue;
     }
-    finalTokens.AppendElement(token);
-    printf_stderr("Byetrack (Listener) Successfully validated and added final token for domain: %s\n",
+
+    aTokens.AppendElement(token);
+    printf_stderr("Byetrack (Listener) Successfully added token for domain: %s\n",
                   token.destinationDomain.BeginReading());
   }
+}
+
+static void ApplyByetrackFromLoadStateToBrowserContext(nsDocShellLoadState* aLoadState, mozilla::dom::BrowsingContext* aBrowsingContext) {
+  if (!aBrowsingContext) {
+    return;
+  }
+
+  // skip if tokens are already set
+  nsTArray<ByetrackToken> existing;
+  aBrowsingContext->GetByetrackWildcardTokensArray(existing);
+  nsCString existingHeader;
+  aBrowsingContext->GetByetrackFinalCookieHeader(existingHeader);
+  if (!existing.IsEmpty() || !existingHeader.IsEmpty()) {
+    printf_stderr("[Byetrack] Tokens already present in BrowsingContext, skip parsing\n");
+    return;
+  }
+  printf_stderr("Byetrack (Listener) No already existing tokens or cookie header found => Do Parsing\n");
+
+  // Get the token blobs and domain info from load state
+  const nsCString& finalTokensBlob = aLoadState->FinalTokensBlob();
+  const nsCString& wildcardTokensBlob = aLoadState->WildcardTokensBlob();
+  const nsCString& domain = aLoadState->DomainName();
+  const nsCString& package = aLoadState->PackageName();
+  const nsCString& version = aLoadState->VersionName();
+
+  nsTArray<ByetrackToken> finalTokens;
+  // Parse token blob to get individual token strings
+  ProcessTokenBlob(finalTokensBlob, package, version, domain, finalTokens);
 
   // Generate cookie header from validated tokens
   nsCString cookieHeader;
   if (!finalTokens.IsEmpty() && NS_SUCCEEDED(mozilla::byetrack::TokenEncoder::GetCookieHeader(finalTokens, cookieHeader))) {
-    aLoadInfo->SetByetrackFinalCookieHeader(cookieHeader);
-    printf_stderr("Byetrack (Listener) Cookie Header: %s\n", cookieHeader.BeginReading());
+    aBrowsingContext->SetByetrackFinalCookieHeader(cookieHeader);
+    printf_stderr("Byetrack (Listener) Cookie Header put on Browsing Context: %s\n", cookieHeader.BeginReading());
   }
 
   // Parse wildcard tokens
   nsTArray<ByetrackToken> wildcardTokens;
-
-  // Parse wildcard token blob to get individual token strings
-  nsTArray<nsCString> wildcardTokenStrings;
-  if (NS_FAILED(mozilla::byetrack::TokenParser::ParseTokenBlob(wildcardTokensBlob, wildcardTokenStrings))) {
-    printf_stderr("Byetrack (Listener) Failed to parse wildcard token blob\n");
-    return;
-  }
-
-  printf_stderr("Byetrack (Listener) Parsed %zu wildcard token strings\n", wildcardTokenStrings.Length());
-
-  // Process each wildcard token string
-  for (const auto& tokenStr : wildcardTokenStrings) {
-    // Step 2a: Decode the token string
-    nsCString decodedJson;
-    nsresult decodeRv = mozilla::byetrack::TokenEncoder::DecodeEncryptedTokenString(tokenStr, decodedJson);
-    if (NS_FAILED(decodeRv)) {
-      printf_stderr("Byetrack (Listener) Failed to decode encrypted wildcard token\n");
-      continue;
-    }
-      
-    // Parse the decoded JSON to ByetrackToken
-    ByetrackToken token;
-    if (NS_FAILED(mozilla::byetrack::TokenParser::ParseSingleToken(decodedJson, token))) {
-      printf_stderr("Byetrack (Listener) Failed to parse wildcard token from JSON\n");
-      continue;
-    }
-
-    // Validate the token
-    if (NS_FAILED(mozilla::byetrack::TokenValidator::ValidateTokenFields(package, version, domain, token))) {
-      printf_stderr("Byetrack (Listener) Wildcard token validation failed for domain: %s\n",
-                    token.destinationDomain.BeginReading());
-      continue;
-    }
-    wildcardTokens.AppendElement(token);
-    printf_stderr("Byetrack (Listener) Successfully validated and added wildcard token for domain: %s\n",
-                  token.destinationDomain.BeginReading());
-  }
+  ProcessTokenBlob(wildcardTokensBlob, package, version, domain, wildcardTokens);
 
   // Set the validated wildcard tokens
   if (!wildcardTokens.IsEmpty()) {
-    aLoadInfo->SetByetrackWildcardTokensArray(wildcardTokens);
-    printf_stderr("Byetrack (Listener) Byetrack Wildcard Tokens set directly (count: %zu)\n", wildcardTokens.Length());
+    aBrowsingContext->SetByetrackWildcardTokensArray(wildcardTokens);
+    printf_stderr("Byetrack (Listener) Byetrack Wildcard Tokens put on Browsing context (count: %zu)\n", wildcardTokens.Length());
   }
 }
 
@@ -314,9 +283,6 @@ static auto CreateDocumentLoadInfo(CanonicalBrowsingContext* aBrowsingContext,
       aLoadState->GetTextDirectiveUserActivation() ||
       aLoadState->HasLoadFlags(nsIWebNavigation::LOAD_FLAGS_FROM_EXTERNAL));
   loadInfo->SetIsMetaRefresh(aLoadState->IsMetaRefresh());
-
-  // Apply Byetrack processing to the LoadInfo
-  ApplyByetrackFromLoadStateToLoadInfo(aLoadState, loadInfo.get());
 
   return loadInfo.forget();
 }
@@ -854,6 +820,11 @@ auto DocumentLoadListener::Open(nsDocShellLoadState* aLoadState,
   }
 
   auto* documentContext = GetDocumentBrowsingContext();
+
+  if (documentContext) {
+    // Byetrack: Put Byetrack tokens into the BrowsingContext
+    ApplyByetrackFromLoadStateToBrowserContext(aLoadState, documentContext);
+  }
 
   // If we are using SHIP and this load is from session history, validate that
   // the load matches our local copy of the loading history entry.

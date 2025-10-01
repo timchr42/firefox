@@ -31,7 +31,7 @@ class nsPIDOMWindowOuter;
 namespace mozilla {
 
 namespace byetrack {
-struct ByetrackToken;
+class ByetrackToken;
 }  // namespace byetrack
 
 namespace dom {
