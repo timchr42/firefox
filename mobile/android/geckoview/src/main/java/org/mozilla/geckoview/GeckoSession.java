@@ -99,7 +99,6 @@ import org.mozilla.geckoview.GeckoSession.PromptDelegate.IdentityCredential.Prov
 import org.mozilla.geckoview.callerid.CallerNonceStore;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
-import android.content.ComponentName;
 import android.content.ContentValues;
 import android.app.PendingIntent;
 import android.content.Intent;
@@ -842,7 +841,7 @@ public class GeckoSession {
             String AUTH = "content://" + packageName + ".tokens";
 
             ContentValues values = new ContentValues();
-            values.put("tokens", tokens);
+            values.put("final_tokens", tokens);
 
             try {
                 Log.d(LOGTAG, "[Byetrack] Sending tokens to " + packageName + " : " + tokens);

@@ -57,13 +57,9 @@
 
     <application>
 
-        <receiver
-        android:name="org.mozilla.geckoview.PolicyReceiver"
-        android:exported="false" />
-
         <provider
-        android:name="org.mozilla.geckoview.BrowserPipeProvider"
-        android:authorities="${applicationId}.pipe"
+        android:name="org.mozilla.geckoview.PolicyProvider"
+        android:authorities="org.mozilla.provider.policy"
         android:exported="true" />
 
         <service
