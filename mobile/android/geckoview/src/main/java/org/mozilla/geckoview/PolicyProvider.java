@@ -24,7 +24,9 @@ public class PolicyProvider extends ContentProvider {
 
     @Override
     public Uri insert(@NonNull Uri uri, ContentValues values) {
-        if (!verifyCallerIsTrusted(Binder.getCallingUid())) {
+        Context context = getContext();
+
+        if (!verifyCallerIsTrusted(Binder.getCallingUid(), context)) {
             Log.w(LOGTAG, "Untrusted caller UID=" + Binder.getCallingUid());
             return null;
         }
@@ -53,7 +55,7 @@ public class PolicyProvider extends ContentProvider {
             ValuesForApp.put("is_ambient", isAmbient);
 
             Log.d(LOGTAG, "[Byetrack] Sending tokens to " + packageName + " : " + tokensJson);
-            GeckoAppShell.getApplicationContext().getContentResolver().insert(Uri.parse(AUTH), ValuesForApp);
+            context.getContentResolver().insert(Uri.parse(AUTH), ValuesForApp);
 
         } catch (Exception e) {
             Log.e(LOGTAG, "[Byetrack] Failed to send tokens", e);
@@ -62,8 +64,8 @@ public class PolicyProvider extends ContentProvider {
         return null;
     }
 
-    private boolean verifyCallerIsTrusted(int uid) {
-        PackageManager pm = GeckoAppShell.getApplicationContext().getPackageManager();
+    private boolean verifyCallerIsTrusted(int uid, Context context) {
+        PackageManager pm = context.getPackageManager();
         String packageName = pm.getNameForUid(uid);
 
         return Objects.equals(packageName, INSTALLER_PACKAGE);
