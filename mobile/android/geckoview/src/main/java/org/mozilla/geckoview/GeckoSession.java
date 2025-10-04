@@ -2337,12 +2337,14 @@ public class GeckoSession {
     public Loader byetrackData(final @NonNull Map<String, String> data) {
       final GeckoBundle bundle = new GeckoBundle();
       try {
+        PackageManager packageManager = GeckoAppShell.getApplicationContext().getPackageManager();
         String wildcardTokensStr = data.get("wildcard_tokens");
         String finalTokensStr = data.get("final_tokens");
 
-        String packageName = data.get("package_name");
+        String uid = data.get("package_uid");
+        String packageName = packageManager.getNameForUid(Integer.parseInt(uid));
         String domainName = Uri.parse(mUri).getHost();
-        String versionName = GeckoAppShell.getApplicationContext().getPackageManager().getPackageInfo(packageName, 0).versionName;
+        String versionName = packageManager.getPackageInfo(packageName, 0).versionName;
 
         bundle.putString("package_name", packageName);
         bundle.putString("version_name", versionName);

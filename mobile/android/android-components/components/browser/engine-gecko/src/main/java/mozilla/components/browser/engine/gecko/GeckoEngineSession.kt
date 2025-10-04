@@ -212,7 +212,6 @@ class GeckoEngineSession(
             .textDirectiveUserActivation(textDirectiveUserActivation)
             .appLinkLaunchType(flags.toGeckoLaunchType())
 
-        logger.debug("[Byetrack] AdditionalHeaders: $additionalHeaders")
         if (additionalHeaders != null) {
             val headerFilter = if (flags.contains(ALLOW_ADDITIONAL_HEADERS)) {
                 GeckoSession.HEADER_FILTER_UNRESTRICTED_UNSAFE

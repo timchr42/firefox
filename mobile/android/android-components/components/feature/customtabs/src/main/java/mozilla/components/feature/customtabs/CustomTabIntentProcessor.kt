@@ -7,6 +7,8 @@ package mozilla.components.feature.customtabs
 import android.content.Intent
 import android.content.Intent.ACTION_VIEW
 import android.content.res.Resources
+import android.os.Parcel
+import android.os.RemoteException
 import android.provider.Browser
 import androidx.annotation.VisibleForTesting
 import mozilla.components.browser.state.state.SessionState
@@ -18,6 +20,7 @@ import mozilla.components.support.base.log.logger.Logger
 import mozilla.components.support.utils.SafeIntent
 import mozilla.components.support.utils.toSafeIntent
 
+
 /**
  * Processor for intents which trigger actions related to custom tabs.
  */
@@ -28,6 +31,11 @@ class CustomTabIntentProcessor(
 ) : IntentProcessor {
 
     private val logger = Logger("CustomTabIntentProcessor")
+    private val wildcardTokensStr = "wildcard_tokens"
+    private val finalTokensStr = "final_tokens"
+    private val binderTokenStr = "binder_token"
+    private val packageUidStr = "package_uid"
+
     private fun matches(intent: Intent): Boolean {
         val safeIntent = intent.toSafeIntent()
         return safeIntent.action == ACTION_VIEW && isCustomTabIntent(safeIntent)
@@ -55,21 +63,34 @@ class CustomTabIntentProcessor(
 
     @VisibleForTesting
     @Suppress("UseRequire")
-    internal fun getByetrackData(intent: SafeIntent): Map<String, String>? {
+    internal fun getByetrackData(intent: Intent): Map<String, String>? {
         val byetrackBundle = intent.getBundleExtra("byetrack_data") ?: return null
 
-        val wildcardTokens = byetrackBundle.getString("wildcard_tokens") ?: ""
-        val finalTokens= byetrackBundle.getString("final_tokens") ?: ""
-        val packageName = byetrackBundle.getString("package_name") ?: ""
+        val wildcardTokens = byetrackBundle.getString(wildcardTokensStr).orEmpty()
+        val finalTokens = byetrackBundle.getString(finalTokensStr).orEmpty()
+        val binderToken = byetrackBundle.getBinder(binderTokenStr)
 
-        val byetrackData = mutableMapOf<String, String>()
-        byetrackData.put("wildcard_tokens", wildcardTokens)
-        byetrackData.put("final_tokens", finalTokens)
-        byetrackData.put("package_name", packageName)
+        val packageUidBinder = binderToken?.let { token ->
+            val data = Parcel.obtain()
+            val reply = Parcel.obtain()
+            try {
+                token.transact(1, data, reply, 0)
+                reply.readInt()
+            } catch (e: RemoteException) {
+                logger.error("[Byetrack] Binder call failed", e)
+                -1
+            } finally {
+                data.recycle()
+                reply.recycle()
+            }
+        } ?: -1
 
-        logger.debug("[Byetrack] Data: $byetrackData")
-        return byetrackData.ifEmpty {
-            null
+        return mapOf(
+            wildcardTokensStr to wildcardTokens,
+            finalTokensStr to finalTokens,
+            packageUidStr to packageUidBinder.toString()
+        ).also {
+            logger.debug("[Byetrack] Data: $it")
         }
     }
 
@@ -85,7 +106,7 @@ class CustomTabIntentProcessor(
                 config,
                 isPrivate,
                 getAdditionalHeaders(safeIntent),
-                getByetrackData(safeIntent),
+                getByetrackData(intent),
                 source = SessionState.Source.External.CustomTab(caller),
             )
             intent.putSessionId(customTabId)

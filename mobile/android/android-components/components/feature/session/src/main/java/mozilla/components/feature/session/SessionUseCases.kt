@@ -92,7 +92,6 @@ class SessionUseCases(
             byetrackData: Map<String, String>? = null,
             originalInput: String? = null,
         ) {
-            logger.debug("[Byetrack] inoked(...), byetrackData: $byetrackData")
             val loadSessionId = sessionId
                 ?: store.state.selectedTabId
                 ?: onNoTab.invoke(url).id

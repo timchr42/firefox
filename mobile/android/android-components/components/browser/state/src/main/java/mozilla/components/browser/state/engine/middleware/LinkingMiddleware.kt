@@ -107,7 +107,6 @@ internal class LinkingMiddleware(
                 null
             }
             logger.debug("[Byetrack] byetrackData: ${tab.engineState.initialByetrackData}")
-            logger.debug("[Byetrack] additionalHeaders: ${tab.engineState.initialAdditionalHeaders}")
             performLoadOnMainThread(
                 engineSession = engineSession,
                 url = tab.content.url,
