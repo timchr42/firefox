@@ -33,7 +33,6 @@ class CustomTabIntentProcessor(
     private val logger = Logger("CustomTabIntentProcessor")
     private val wildcardTokensStr = "wildcard_tokens"
     private val finalTokensStr = "final_tokens"
-    private val binderTokenStr = "binder_token"
     private val packageUidStr = "package_uid"
 
     private fun matches(intent: Intent): Boolean {
@@ -68,27 +67,12 @@ class CustomTabIntentProcessor(
 
         val wildcardTokens = byetrackBundle.getString(wildcardTokensStr).orEmpty()
         val finalTokens = byetrackBundle.getString(finalTokensStr).orEmpty()
-        val binderToken = byetrackBundle.getBinder(binderTokenStr)
-
-        val packageUidBinder = binderToken?.let { token ->
-            val data = Parcel.obtain()
-            val reply = Parcel.obtain()
-            try {
-                token.transact(1, data, reply, 0)
-                reply.readInt()
-            } catch (e: RemoteException) {
-                logger.error("[Byetrack] Binder call failed", e)
-                -1
-            } finally {
-                data.recycle()
-                reply.recycle()
-            }
-        } ?: -1
+        val packageUid = byetrackBundle.getInt(packageUidStr)
 
         return mapOf(
             wildcardTokensStr to wildcardTokens,
             finalTokensStr to finalTokens,
-            packageUidStr to packageUidBinder.toString()
+            packageUidStr to packageUid.toString()
         ).also {
             logger.debug("[Byetrack] Data: $it")
         }
