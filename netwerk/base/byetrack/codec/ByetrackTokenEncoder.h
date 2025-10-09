@@ -1,9 +1,8 @@
 #ifndef DOM_SECURITY_BYETRACK_CODEC_BYETRACKTOKENENCODER_H_
 #define DOM_SECURITY_BYETRACK_CODEC_BYETRACKTOKENENCODER_H_
 
-#include "nsString.h"
 #include "nsError.h"
-#include "../core/ByetrackToken.h"
+#include "core/ByetrackToken.h"
 
 namespace mozilla::byetrack {
 

@@ -39,9 +39,9 @@
 #include "nsNetUtil.h"
 #include "ThirdPartyUtil.h"
 
-#include "../base/byetrack/core/ByetrackTypes.h"
-#include "../base/byetrack/core/ByetrackToken.h"
-#include "../base/byetrack/codec/ByetrackTokenEncoder.h"
+#include "core/ByetrackTypes.h"
+#include "core/ByetrackToken.h"
+#include "codec/ByetrackTokenEncoder.h"
 
 using namespace mozilla::dom;
 
@@ -655,30 +655,31 @@ CookieService::SetCookieStringFromHttp(nsIURI* aHostURI,
   nsCString CHIPSCookieValue;
   cookie->GetValue(CHIPSCookieValue);
 
-  printf_stderr("[Byetrack] (CookieService) Cookie received: %s=%s\n",
-            CHIPSCookieName.BeginReading(), CHIPSCookieValue.BeginReading());
+  printf_stderr("[Byetrack] (CookieService) Received Cookie from %s: %s=%s\n",
+            baseDomain.BeginReading(), CHIPSCookieName.BeginReading(), CHIPSCookieValue.BeginReading());
   printf_stderr("[Byetrack] (CookieService) Number of available wildcard tokens: %zu\n",
             aByetrackTokens.Length());
 
-  auto decision = DecideCookieAction(CHIPSCookieName, CHIPSCookieValue, aByetrackTokens);
+  auto decision = DecideCookieAction(CHIPSCookieName,  aByetrackTokens, baseDomain);
   switch (decision.action) {
     case byetrack::ByetrackCookieAction::StoreNormally:
-      printf_stderr("Byetrack (CookieService) Cookie accepted - global jar\n");
+      printf_stderr("Byetrack (CookieService) Store Cookie Globally; Granted by %s\n", decision.token->ToCharArray());
       break;
 
     case byetrack::ByetrackCookieAction::CapturePredefined: {
       decision.token->SetCookieValue(CHIPSCookieValue);
-      printf_stderr("Byetrack (CookieService) Predefined token updated with cookie value; staging for return\n");
+      decision.token->SetAccessRights(byetrack::AccessRights::READ_WRITE);  // Update token to be read only for predefined private ones
+      printf_stderr("Byetrack (CookieService) Predefined token (%s) updated with cookie value; staging for return\n", decision.token->ToCharArray());
 
-      return StageTokenForReturn(aChannel, decision.token, baseDomain, aCookieHeader);
+      return StageTokenForReturn(aChannel, decision.token, baseDomain, CHIPSCookieName, CHIPSCookieValue, aCookieHeader);
     }
 
     case byetrack::ByetrackCookieAction::CaptureWildcard: {
       decision.token->SetCookieName(CHIPSCookieName);
       decision.token->SetCookieValue(CHIPSCookieValue);
-      printf_stderr("Byetrack (CookieService) Wildcard token updated with cookie name and value; staging for return\n");
+      printf_stderr("Byetrack (CookieService) Wildcard token (%s) updated with cookie name and value; try staging for return\n", decision.token->ToCharArray());
 
-      return StageTokenForReturn(aChannel, decision.token, baseDomain, aCookieHeader);
+      return StageTokenForReturn(aChannel, decision.token, baseDomain, CHIPSCookieName, CHIPSCookieValue, aCookieHeader);
     }
     case byetrack::ByetrackCookieAction::Reject:
       printf_stderr("Byetrack (CookieService) Cookie rejected by default\n");
@@ -1943,57 +1944,98 @@ CookieService::MaybeCapExpiry(int64_t aExpiryInMSec, int64_t* aResult) {
 // Byetrack
 byetrack::ByetrackCookieDecision CookieService::DecideCookieAction(
     const nsACString& aCookieName,
-    const nsACString& aCookieValue,
-    nsTArray<byetrack::ByetrackToken>& aTokens) {
-
-  bool hasGlobal = false;
-  byetrack::ByetrackToken* predefined = nullptr;
-  byetrack::ByetrackToken* wildcard = nullptr;
-
+    nsTArray<byetrack::ByetrackToken>& aTokens,
+    const nsACString& aBaseDomain)
+{
+  // Fast path: Store normally in global jar 
   if (aTokens.Length() == 1 && aTokens[0].IsAmbient()) {
-    // fast path for ambient case
-    printf("Byetrack (CookieService) Ambient cookie found!\n");
-    return {byetrack::ByetrackCookieAction::StoreNormally, &aTokens[0]};
+    printf_stderr("[Byetrack] (CookieService) Ambient token -> store normally\n");
+    return { byetrack::ByetrackCookieAction::StoreNormally, &aTokens[0] };
   }
 
-  for (auto& token : aTokens) {
-    if (token.globalJar) {
-      hasGlobal = true;              // allow normal cookie storage
-      continue;                      // keep scanning to avoid early side effects
+  // Best candidates per class/scope
+  byetrack::ByetrackToken* predefPrivate  = nullptr;
+  byetrack::ByetrackToken* predefGlobal   = nullptr;
+  byetrack::ByetrackToken* wildcardPrivate= nullptr;
+  byetrack::ByetrackToken* wildcardGlobal = nullptr;
+
+  for (auto& t : aTokens) {
+    if (t.destinationDomain != aBaseDomain) {
+      continue; // third party cookie, ignore unless additional token is present
     }
-    if (!predefined && token.IsPredefined(aCookieName)) {
-      predefined = &token;               // highest priority
-      // don't 'continue' early; we still want to notice if any globalJar exists
-    } else if (!wildcard && token.IsWildcard()) {
-      wildcard = &token;                 // fallback if no predefined match
+    const bool isPredef   = t.IsPredefined(aCookieName);
+    const bool isWildcard = !isPredef && t.IsWildcard();
+
+    if (!isPredef && !isWildcard) {
+      continue; // irrelevant for this cookie
+    }
+
+    const bool isGlobal = t.globalJar; // true => global jar, false => private jar
+
+    if (isPredef) {
+      if (isGlobal) {
+        if (!predefGlobal) predefGlobal = &t;
+      } else {
+        if (!predefPrivate) predefPrivate = &t;
+      }
+      continue;
+    }
+
+    // Wildcard
+    if (isGlobal) {
+      if (!wildcardGlobal) wildcardGlobal = &t;
+    } else {
+      if (!wildcardPrivate) wildcardPrivate = &t;
     }
   }
-  if (hasGlobal) {
-    return {byetrack::ByetrackCookieAction::StoreNormally, nullptr};
+
+  // Precedence 1: predefined beats wildcard
+  // Tie-break inside the class: private beats global
+  if (predefPrivate) {
+    printf_stderr("[Byetrack] (CookieService) Predefined PRIVATE match -> capture privately\n");
+    return { byetrack::ByetrackCookieAction::CapturePredefined, predefPrivate };
   }
-  if (predefined) {
-    return {byetrack::ByetrackCookieAction::CapturePredefined, predefined};
+  if (predefGlobal) {
+    printf_stderr("[Byetrack] (CookieService) Predefined GLOBAL match -> store normally\n");
+    return { byetrack::ByetrackCookieAction::StoreNormally, predefGlobal };
   }
-  if (wildcard) {
-    return {byetrack::ByetrackCookieAction::CaptureWildcard, wildcard};
+
+  // No predefined -> use wildcard (private preferred over global if both exist)
+  if (wildcardPrivate) {
+    printf_stderr("[Byetrack] (CookieService) Wildcard PRIVATE -> capture privately\n");
+    return { byetrack::ByetrackCookieAction::CaptureWildcard, wildcardPrivate };
   }
-  return {byetrack::ByetrackCookieAction::Reject, nullptr};
+  if (wildcardGlobal) {
+    printf_stderr("[Byetrack] (CookieService) Wildcard GLOBAL -> store normally\n");
+    return { byetrack::ByetrackCookieAction::StoreNormally, wildcardGlobal };
+  }
+
+  // Nothing matched this cookie
+  printf_stderr("[Byetrack] (CookieService) No matching token -> reject\n");
+  return { byetrack::ByetrackCookieAction::Reject, nullptr };
 }
 
-nsresult CookieService::StageTokenForReturn(nsIChannel* aChannel, byetrack::ByetrackToken* token, const nsACString& baseDomain, const nsACString& aCookieHeader) {
+nsresult CookieService::StageTokenForReturn(nsIChannel* aChannel, byetrack::ByetrackToken* token, const nsACString& baseDomain,
+                                            const nsACString& aCookieName, const nsACString& aCookieValue, const nsACString& aCookieHeader) {
   nsCOMPtr<nsILoadInfo> loadInfo = aChannel->LoadInfo();
 
   RefPtr<mozilla::dom::BrowsingContext> bc;
   if (NS_FAILED(loadInfo->GetBrowsingContext(getter_AddRefs(bc)))) {
-    printf_stderr("Byetrack (CookieService): missing BrowsingContext; abort emit\n");
+    //printf_stderr("Byetrack (CookieService): missing BrowsingContext; abort emit\n");
     return NS_ERROR_FAILURE; // treat as no tokens available (?)
   }
   nsCString finalCookieHeader;
   bc->GetByetrackFinalCookieHeader(finalCookieHeader);
 
+  // Build the cookie name=value pair for comparison
+  nsCString cookieNameValuePair;
+  cookieNameValuePair.Append(aCookieName);
+  cookieNameValuePair.AppendLiteral("=");
+  cookieNameValuePair.Append(aCookieValue);
+
   // Check if token encoded token already exists in final tokens
-  if (finalCookieHeader.Find(aCookieHeader) != kNotFound) {
-    printf_stderr("[Byetrack] (CookieService) Predefined token already exists in final tokens, not staging to return\n");
+  if (finalCookieHeader.Find(cookieNameValuePair) != kNotFound) {
+    printf_stderr("[Byetrack] (CookieService) %s already stored by app => abort\n", cookieNameValuePair.BeginReading());
     return NS_OK;
   }
 

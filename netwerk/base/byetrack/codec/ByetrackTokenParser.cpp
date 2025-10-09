@@ -5,14 +5,13 @@
 #include "xpcpublic.h"
 #include "mozilla/dom/ScriptSettings.h"
 #include "nsJSUtils.h"
-#include "../core/ByetrackConstants.h"
+#include "core/ByetrackConstants.h"
 
 namespace mozilla::byetrack {
 
 nsresult TokenParser::ParseTokenBlob(const nsACString& aBlob,
                                     nsTArray<nsCString>& outTokenStrings) {
   if (aBlob.IsEmpty()) {
-    printf_stderr("Byetrack (Parser) empty token blob => skip parsing\n");
     return NS_OK; // no tokens => no work to do
   }
   printf_stderr("Byetrack (Parser) parsing token blob: %s\n", aBlob.BeginReading());

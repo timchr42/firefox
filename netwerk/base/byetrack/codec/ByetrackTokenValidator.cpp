@@ -1,5 +1,5 @@
 #include "ByetrackTokenValidator.h"
-#include "../core/ByetrackConstants.h"
+#include "core/ByetrackConstants.h"
 
 namespace mozilla::byetrack {
 
@@ -22,17 +22,11 @@ nsresult TokenValidator::ValidateTokenFields(const nsACString& aExpectedPackageN
   }
 
   // Validate domain name with wildcard support
-  if (!IsValidDomainMatch(aExpectedDomainName, aToken.destinationDomain)) {
-    printf_stderr("Byetrack (Validator) Domain mismatch: expected '%s', token domain '%s'\n",
-                  aExpectedDomainName.BeginReading(), aToken.destinationDomain.BeginReading());
-    return NS_ERROR_INVALID_ARG;
-  }
-
-  // Validate token completeness
-  if (!IsTokenComplete(aToken)) {
-    printf_stderr("Byetrack (Validator) Token is incomplete\n");
-    return NS_ERROR_INVALID_ARG;
-  }
+  //if (!IsValidDomainMatch(aExpectedDomainName, aToken.destinationDomain)) {
+  //  printf_stderr("Byetrack (Validator) Domain mismatch: expected '%s', token domain '%s'\n",
+  //                aExpectedDomainName.BeginReading(), aToken.destinationDomain.BeginReading());
+  //  return NS_ERROR_INVALID_ARG;
+  //}
 
   printf_stderr("Byetrack (Validator) Token validation successful\n");
   return NS_OK;
@@ -59,19 +53,12 @@ bool TokenValidator::IsValidDomainMatch(const nsACString& aExpectedDomain,
       nsCString expectedWithDot;
       expectedWithDot.AssignLiteral(".");
       expectedWithDot.Append(baseDomain);
-      return aExpectedDomain.Equals(baseDomain) || 
+      return aExpectedDomain.Equals(baseDomain) ||
              aExpectedDomain.Find(expectedWithDot) != kNotFound;
     }
   }
 
   return false;
-}
-
-bool TokenValidator::IsTokenComplete(const ByetrackToken& aToken) {
-  return !aToken.destinationDomain.IsEmpty() &&
-         !aToken.cookieName.IsEmpty() &&
-         !aToken.packageName.IsEmpty() &&
-         !aToken.versionName.IsEmpty();
 }
 
 } // namespace mozilla::byetrack

@@ -1,7 +1,6 @@
 #ifndef DOM_SECURITY_BYETRACK_CORE_BYETRACKTOKEN_H_
 #define DOM_SECURITY_BYETRACK_CORE_BYETRACKTOKEN_H_
 
-#include "nsTArray.h"
 #include "nsString.h"
 #include "ByetrackTypes.h"
 #include "ByetrackConstants.h"
@@ -66,7 +65,7 @@ public:
   }
 
   bool CanWrite() const {
-    return accessRights == AccessRights::WRITE || 
+    return accessRights == AccessRights::WRITE ||
            accessRights == AccessRights::READ_WRITE;
   }
 
@@ -81,14 +80,22 @@ public:
   // String representation for debugging
   nsCString ToString() const {
     nsCString result;
-    result.AppendPrintf("Token{domain=%s, cookie=%s, package=%s, version=%s, rights=%s, global=%s}",
+    result.AppendPrintf("Token{domain=%s, cookie_name=%s, cookie_value=%s, package=%s, version=%s, rights=%s, global=%s}",
                        destinationDomain.BeginReading(),
                        cookieName.BeginReading(),
+                       cookieValue.BeginReading(),
                        packageName.BeginReading(),
                        versionName.BeginReading(),
                        AccessRightsToString(accessRights),
                        globalJar ? "true" : "false");
     return result;
+  }
+
+  char* ToCharArray() const {
+    nsCString str = ToString();
+    char* cstr = new char[str.Length() + 1];
+    strcpy(cstr, str.BeginReading());
+    return cstr;
   }
 
   // Setters with validation

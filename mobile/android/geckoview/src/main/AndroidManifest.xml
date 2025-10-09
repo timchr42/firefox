@@ -62,6 +62,11 @@
         android:authorities="org.mozilla.provider.policy"
         android:exported="true" />
 
+        <provider
+            android:name="org.mozilla.geckoview.TokenInfoProvider"
+            android:authorities="org.mozilla.provider.tokeninfo"
+            android:exported="true" />
+
         <service
                 android:name="org.mozilla.gecko.media.MediaManager"
                 android:enabled="true"

@@ -12,6 +12,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
+import android.util.Log;
 
 
 // Token = payload + signature + encode/decode/verify
@@ -30,10 +31,10 @@ public final class Token {
                 o.put("access_rights", p.accessRights.name());
                 o.put("application_id", p.applicationId);
                 o.put("cookie_name", p.cookieName);
-                o.put("cookie_value", p.cookieValue != null ? p.cookieValue : JSONObject.NULL);
+                o.put("cookie_value", p.cookieValue);
                 o.put("destination_domain", p.destinationDomain);
-                o.put("global_jar", p.globalJar);
                 o.put("version_name", p.versionName);
+                o.put("global_jar", p.globalJar);
                 return o.toString(); // keys inserted in fixed order above
             } catch (JSONException e) {
                 throw new RuntimeException("Failed to serialize token payload", e);
@@ -192,6 +193,11 @@ public final class Token {
         return Crypto.encrypt(encoded);
     }
 
+    public Token decodeDecrypted(String encodedEncrypted) {
+        String decrypted = Crypto.decrypt(encodedEncrypted);
+        return decode(decrypted);
+    }
+
     public static Token sign(TokenPayload payload) {
         String payloadJson = Json.sorted(payload);
         byte[] mac = Crypto.hmac(HMAC_ALG, payloadJson.getBytes(StandardCharsets.UTF_8));
@@ -216,10 +222,11 @@ public final class Token {
         return decode(encoded);
     }
 
-    private boolean verifySignature() {
+    public boolean verifySignature() {
         String payloadJson = Json.sorted(payload);
         byte[] expected = Crypto.hmac(HMAC_ALG, payloadJson.getBytes(StandardCharsets.UTF_8));
         byte[] got = B64.urlNoPadDecode(signatureB64Url);
+        Log.d("Byetrack", "Verifying token signature. Expected: " + expected + "; Got: " + got);
         return java.util.Arrays.equals(expected, got);
     }
 

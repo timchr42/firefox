@@ -4792,7 +4792,7 @@ void HttpBaseChannel::AddCookiesToRequest() {
   RefPtr<mozilla::dom::BrowsingContext> bc;
   mLoadInfo->GetBrowsingContext(getter_AddRefs(bc));
   if (!bc) {
-    printf_stderr("Byetrack (hbc): null BrowsingContext; abort emit\n");
+    //printf_stderr("Byetrack (hbc): null BrowsingContext; abort emit\n");
     return;
   }
 
@@ -4807,6 +4807,8 @@ void HttpBaseChannel::AddCookiesToRequest() {
   // If we are in the child process, we want the parent seeing any
   // cookie headers that might have been set by SetRequestHeader()
   SetRequestHeader(nsHttp::Cookie.val(), cookie, false);
+  //printf_stderr("Byetrack (http base channel): cookie header: %s\n",
+  //              cookie.get());
 }
 
 void HttpBaseChannel::MergeCookieHeaders(nsACString& aCookieHeader,
@@ -4815,8 +4817,6 @@ void HttpBaseChannel::MergeCookieHeaders(nsACString& aCookieHeader,
     aCookieHeader.AppendLiteral("; ");
   }
   aCookieHeader.Append(aByetrackHeader);
-  printf_stderr("Byetrack (HttpBaseChannel) Merged Cookie Header: %s\n",
-                aCookieHeader.BeginReading());
 }
 
 /* static */
@@ -5581,7 +5581,6 @@ HttpBaseChannel::AddByetrackTokenToReturnForDomain(const nsACString& aDomain, co
   printf_stderr("Byetrack (hbc): Adding token for domain '%s': '%s'\n", PromiseFlatCString(aDomain).get(), PromiseFlatCString(aToken).get());
   nsTArray<nsCString>& tokens = mByetrackTokensToReturn.LookupOrInsert(aDomain);
   tokens.AppendElement(aToken);
-  printf_stderr("Byetrack (hbc): Total tokens for domain '%s': %zu\n", PromiseFlatCString(aDomain).get(), tokens.Length());
   return NS_OK;
 }
 
@@ -7037,19 +7036,6 @@ void HttpBaseChannel::EmitByetrackTokensToGeckoView() {
     return;
   }
 
-  // Get the domain from the URI
-  nsAutoCString domain;
-  if (!mURI || NS_FAILED(mURI->GetAsciiHost(domain)) || domain.IsEmpty()) {
-    printf_stderr("Byetrack (hbc): Failed to get domain from URI\n");
-    return;
-  }
-  nsTArray<nsCString> tokens;
-  if (NS_FAILED(TakeByetrackTokensToReturnForDomain(domain, &tokens)) ||
-      tokens.IsEmpty()) {
-    printf_stderr("Byetrack (hbc): No tokens found for domain: %s\n", domain.get());
-    return;
-  }
-
   // Convert tokens map to JSON similar to Java version
   // Creates JSON like: {"domain1": ["token1", "token2"], "domain2": ["token3"]}
   JSONStringWriteFunc<nsAutoCString> jsonOutput;
@@ -7057,15 +7043,29 @@ void HttpBaseChannel::EmitByetrackTokensToGeckoView() {
 
   writer.Start();
 
-  // Start array property for this domain
-  writer.StartArrayProperty(mozilla::Span<const char>(domain.BeginReading(), domain.Length()));
+  // Iterate over all domains and their tokens
+  for (auto iter = mByetrackTokensToReturn.Iter(); !iter.Done(); iter.Next()) {
+    const nsACString& domain = iter.Key();
+    nsTArray<nsCString>& tokens = iter.Data();
+    
+    if (tokens.IsEmpty()) {
+      continue;
+    }
 
-  // Add all tokens for this domain
-  for (const auto& token : tokens) {
-    writer.StringElement(mozilla::Span<const char>(token.get(), token.Length()));
+    printf_stderr("Byetrack (hbc): Emitting %zu tokens for domain: %s\n", 
+                  tokens.Length(), PromiseFlatCString(domain).get());
+
+    // Start array property for this domain
+    writer.StartArrayProperty(mozilla::Span<const char>(domain.BeginReading(), domain.Length()));
+
+    // Add all tokens for this domain
+    for (const auto& token : tokens) {
+      writer.StringElement(mozilla::Span<const char>(token.get(), token.Length()));
+    }
+
+    writer.EndArray();
   }
 
-  writer.EndArray();
   writer.End();
 
   if (jsonOutput.StringCRef().IsEmpty()) {
@@ -7075,7 +7075,7 @@ void HttpBaseChannel::EmitByetrackTokensToGeckoView() {
 
   RefPtr<mozilla::dom::BrowsingContext> ctx;
   if (NS_FAILED(mLoadInfo->GetBrowsingContext(getter_AddRefs(ctx)))) {
-    printf_stderr("Byetrack (hbc): missing BrowsingContext; abort emit\n");
+    //printf_stderr("Byetrack (hbc): missing BrowsingContext; abort emit\n");
     return;
   }
   uint64_t bcId = ctx->Id();

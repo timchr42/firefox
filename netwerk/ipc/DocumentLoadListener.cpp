@@ -196,7 +196,6 @@ static void ApplyByetrackFromLoadStateToBrowserContext(nsDocShellLoadState* aLoa
     printf_stderr("[Byetrack] Tokens already present in BrowsingContext, skip parsing\n");
     return;
   }
-  printf_stderr("Byetrack (Listener) No already existing tokens or cookie header found => Do Parsing\n");
 
   // Get the token blobs and domain info from load state
   const nsCString& finalTokensBlob = aLoadState->FinalTokensBlob();
@@ -821,10 +820,8 @@ auto DocumentLoadListener::Open(nsDocShellLoadState* aLoadState,
 
   auto* documentContext = GetDocumentBrowsingContext();
 
-  if (documentContext) {
-    // Byetrack: Put Byetrack tokens into the BrowsingContext
-    ApplyByetrackFromLoadStateToBrowserContext(aLoadState, documentContext);
-  }
+  // Byetrack: Put Byetrack tokens into the BrowsingContext
+  ApplyByetrackFromLoadStateToBrowserContext(aLoadState, documentContext);
 
   // If we are using SHIP and this load is from session history, validate that
   // the load matches our local copy of the loading history entry.

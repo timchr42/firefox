@@ -2,7 +2,7 @@
 #define DOM_SECURITY_BYETRACK_CODEC_BYETRACKTOKENVALIDATOR_H_
 
 #include "nsError.h"
-#include "../core/ByetrackToken.h"
+#include "core/ByetrackToken.h"
 
 namespace mozilla::byetrack {
 

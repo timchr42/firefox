@@ -50,42 +50,72 @@ public final class TokenGenerator {
         Map<String, List<String>> tokensByDomain = new HashMap<>();
 
         try {
-            // Process Entries with predefined cookie name
-            if (policy.has("predefined")) {
-                JSONObject predefined = policy.getJSONObject("predefined");
+            // Collect all policy data
+            Map<String, List<String>> globalCookies = collectCookies(policy, "global");
+            Map<String, List<String>> privateCookies = collectCookies(policy, "private");
+            List<String> globalWildcards = collectWildcards(policy, "global");
+            List<String> privateWildcards = collectWildcards(policy, "private");
 
-                // Process global predefined domains
-                if (predefined.has("global")) {
-                    JSONObject globalPredefined = predefined.getJSONObject("global");
-                    processPredefined(globalPredefined, true, packageName, versionName, TokenPayload.AccessRights.READ, tokensByDomain);
+            // === STEP 2: Domain-level predefined conflicts ===
+            for (Iterator<String> it = globalCookies.keySet().iterator(); it.hasNext();) {
+                String domain = it.next();
+                if (privateCookies.containsKey(domain)) {
+                    Log.w(LOGTAG, "Conflict: domain '" + domain +
+                            "' appears in both predefined GLOBAL and PRIVATE. Downgrading entire domain to PRIVATE.");
+                    it.remove();
                 }
+            }
 
-                // Process private predefined domains
-                if (predefined.has("private")) {
-                    JSONObject privatePredefined = predefined.getJSONObject("private");
-                    processPredefined(privatePredefined, false, packageName, versionName, TokenPayload.AccessRights.READ, tokensByDomain);
+            // Cookie-level conflicts (same domain, same cookie)
+            for (Map.Entry<String, List<String>> entry : privateCookies.entrySet()) {
+                String domain = entry.getKey();
+                List<String> privateCookieNames = entry.getValue();
+
+                if (globalCookies.containsKey(domain)) {
+                    List<String> globalCookieNames = globalCookies.get(domain);
+                    Iterator<String> iter = globalCookieNames.iterator();
+                    while (iter.hasNext()) {
+                        String cookie = iter.next();
+                        if (privateCookieNames.contains(cookie)) {
+                            Log.w(LOGTAG, "Cookie-level conflict: '" + cookie + "' for domain '" + domain +
+                                    "' exists in both GLOBAL and PRIVATE predefined. Using PRIVATE version only.");
+                            iter.remove(); // remove from global side
+                        }
+                    }
                 }
             }
 
-            // Process wildcard domains
-            if (policy.has("wildcard")) {
-                JSONObject wildcard = policy.getJSONObject("wildcard");
-
-                // Process global wildcard domains
-                if (wildcard.has("global")) {
-                    JSONArray globalWildcard = wildcard.getJSONArray("global");
-                    processWildcard(globalWildcard, true, packageName, versionName, TokenPayload.AccessRights.READ, tokensByDomain);
-                }
-
-                // Process private wildcard domains
-                if (wildcard.has("private")) {
-                    JSONArray privateWildcard = wildcard.getJSONArray("private");
-                    processWildcard(privateWildcard, false, packageName, versionName, TokenPayload.AccessRights.NONE, tokensByDomain);
+            // Wildcard conflicts (same domain appears both global/private)
+            for (Iterator<String> it = globalWildcards.iterator(); it.hasNext();) {
+                String domain = it.next();
+                if (privateWildcards.contains(domain)) {
+                    Log.w(LOGTAG, "Wildcard conflict: domain '" + domain +
+                            "' appears as wildcard in both GLOBAL and PRIVATE. Downgrading to PRIVATE.");
+                    it.remove();
                 }
             }
+
+            // Cross-type conflicts (predefined <-> wildcard)
+            // Predefined and wildcard sections are independent → no downgrades needed
+            // Just keep both sets as-is.
+            // This allows:
+            //   - global predefined + private wildcard
+            //   - global wildcard + private predefined
+            //   without restriction
+
+            // Token generation
+            processPredefinedMap(globalCookies, true, packageName, versionName,
+                    TokenPayload.AccessRights.READ, tokensByDomain);
+            processPredefinedMap(privateCookies, false, packageName, versionName,
+                    TokenPayload.AccessRights.READ, tokensByDomain);
+            processWildcardList(globalWildcards, true, packageName, versionName,
+                    TokenPayload.AccessRights.READ, tokensByDomain);
+            processWildcardList(privateWildcards, false, packageName, versionName,
+                    TokenPayload.AccessRights.NONE, tokensByDomain);
 
             int totalTokens = tokensByDomain.values().stream().mapToInt(List::size).sum();
-            Log.d(LOGTAG, "Generated " + totalTokens + " capability tokens across " + tokensByDomain.size() + " domains for " + packageName);
+            Log.d(LOGTAG, "Generated " + totalTokens + " capability tokens across "
+                    + tokensByDomain.size() + " domains for " + packageName);
 
         } catch (Exception e) {
             Log.e(LOGTAG, "Failed to generate capability tokens for " + packageName, e);
@@ -94,6 +124,66 @@ public final class TokenGenerator {
         logTokens(tokensByDomain, packageName);
         return tokensMapToJsonString(tokensByDomain);
     }
+
+
+    private static Map<String, List<String>> collectCookies(JSONObject policy, String level) {
+        Map<String, List<String>> map = new HashMap<>();
+        try {
+            if (!policy.has("predefined")) return map;
+            JSONObject predefined = policy.getJSONObject("predefined");
+            if (!predefined.has(level)) return map;
+            JSONObject entries = predefined.getJSONObject(level);
+            Iterator<String> it = entries.keys();
+            while (it.hasNext()) {
+                String domain = it.next();
+                JSONArray cookies = entries.getJSONArray(domain);
+                List<String> names = new ArrayList<>();
+                for (int i = 0; i < cookies.length(); i++) {
+                    names.add(cookies.getString(i));
+                }
+                map.put(domain, names);
+            }
+        } catch (Exception e) {
+            Log.e(LOGTAG, "collectCookies error", e);
+        }
+        return map;
+    }
+
+    private static List<String> collectWildcards(JSONObject policy, String level) {
+        List<String> list = new ArrayList<>();
+        try {
+            if (!policy.has("wildcard")) return list;
+            JSONObject wildcard = policy.getJSONObject("wildcard");
+            if (!wildcard.has(level)) return list;
+            JSONArray arr = wildcard.getJSONArray(level);
+            for (int i = 0; i < arr.length(); i++) list.add(arr.getString(i));
+        } catch (Exception e) {
+            Log.e(LOGTAG, "collectWildcards error", e);
+        }
+        return list;
+    }
+
+    // Convenience wrappers for existing generators:
+    private static void processPredefinedMap(Map<String, List<String>> map, boolean globalJar,
+                                            String pkg, String ver, TokenPayload.AccessRights rights,
+                                            Map<String, List<String>> out) {
+        for (Map.Entry<String, List<String>> e : map.entrySet()) {
+            for (String cookie : e.getValue()) {
+                String token = generateSingleToken(e.getKey(), cookie, "*", globalJar, pkg, ver, rights);
+                if (token != null) out.computeIfAbsent(e.getKey(), k -> new ArrayList<>()).add(token);
+            }
+        }
+    }
+
+    private static void processWildcardList(List<String> domains, boolean globalJar,
+                                            String pkg, String ver, TokenPayload.AccessRights rights,
+                                            Map<String, List<String>> out) {
+        for (String domain : domains) {
+            String token = generateSingleToken(domain, "*", "*", globalJar, pkg, ver, rights);
+            if (token != null) out.computeIfAbsent(domain, k -> new ArrayList<>()).add(token);
+        }
+    }
+
 
     /**
      * Process predefined domains where cookie names are specified

@@ -1,5 +1,5 @@
 #include "ByetrackCrypto.h"
-#include "../core/ByetrackConstants.h"
+#include "core/ByetrackConstants.h"
 #include <nss.h>
 #include <pk11pub.h>
 #include <secitem.h>

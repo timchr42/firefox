@@ -3,19 +3,19 @@ package org.mozilla.gecko.util;
 import androidx.annotation.Nullable;
 
 public final class TokenPayload {
-    public final String cookieName;       // "*" for any name
-    public final String cookieValue;      // "*" for any value
-    public final String applicationId;
-    public final String versionName;
-    public final String destinationDomain;
-    public final AccessRights accessRights;
-    public final boolean globalJar;
+    public String cookieName;       // "*" for any name
+    public String cookieValue;      // "*" for any value
+    public String applicationId;
+    public String versionName;
+    public String destinationDomain;
+    public AccessRights accessRights;
+    public boolean globalJar;
 
     public enum AccessRights {
-        NONE,           // Token gewährt keine Berechtigung
-        READ,           // Nur Lesen erlaubt
-        WRITE,          // Nur Schreiben erlaubt
-        READ_WRITE      // Lesen und Schreiben erlaubt
+        NONE,
+        READ,
+        WRITE,
+        READ_WRITE
     }
 
     public TokenPayload(
@@ -46,6 +46,10 @@ public final class TokenPayload {
 
     public boolean hasAnyAccess() {
         return accessRights != AccessRights.NONE;
+    }
+
+    public void setCookieValue(String cookieValue) {
+        this.cookieValue = cookieValue;
     }
 
     @Override
