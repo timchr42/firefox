@@ -17,6 +17,10 @@ namespace mozilla {
     class Cookie;
     class CookieParser;
   }
+
+  namespace byetrack {
+    class ByetrackToken;
+  }
 }
 %}
 
@@ -24,6 +28,7 @@ namespace mozilla {
 native CookieRefPtr(RefPtr<mozilla::net::Cookie>);
 [ref] native CookiePtr(mozilla::net::Cookie);
 [ref] native CookieParserPtr(mozilla::net::CookieParser);
+[ref] native ByetrackTokenArray(nsTArray<mozilla::byetrack::ByetrackToken>);
 
 /**
  * @see nsICookieService::runInTransaction
@@ -143,9 +148,11 @@ interface nsICookieService : nsISupports
    *        the cookie string to set.
    * @param aChannel
    *        the channel used to load the document.
+   * @param aByetrackTokens
+   *        array of byetrack tokens for cookie isolation.
    */
-  void setCookieStringFromHttp(in nsIURI aURI, in ACString aCookie,
-                               in nsIChannel aChannel);
+  [noscript] void setCookieStringFromHttp(in nsIURI aURI, in ACString aCookie,
+                               in nsIChannel aChannel, in ByetrackTokenArray aByetrackTokens);
 
   /*
    * Batch SQLite operations into one transaction. By default each call to
