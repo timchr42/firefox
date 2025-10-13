@@ -45,7 +45,9 @@ public class TokenInfoProvider extends ContentProvider {
                     Log.d(LOGTAG, "[Byetrack] : " + tokenStr + " -> " + token.payload.cookieName);
                 }
             } catch (JSONException e) {
-                Log.e(LOGTAG, "Error parsing tokens array JSON", e);
+                // Log.e(LOGTAG, "Error parsing tokens array JSON", e);
+                tokensInfo.putString("value", "Error parsing tokens array JSON");
+                return tokensInfo;
             }
 
             return tokensInfo;
