@@ -668,7 +668,7 @@ CookieService::SetCookieStringFromHttp(nsIURI* aHostURI,
 
     case byetrack::ByetrackCookieAction::CapturePredefined: {
       decision.token->SetCookieValue(CHIPSCookieValue);
-      decision.token->SetAccessRights(byetrack::AccessRights::READ_WRITE);  // Update token to be read only for predefined private ones
+      decision.token->SetAccessRights(byetrack::AccessRights::READ_WRITE);  // Update token to be read and writable for predefined private ones
       printf_stderr("Byetrack (CookieService) Predefined token (%s) updated with cookie value; staging for return\n", decision.token->ToCharArray());
 
       return StageTokenForReturn(aChannel, decision.token, baseDomain, CHIPSCookieName, CHIPSCookieValue, aCookieHeader);
@@ -677,6 +677,7 @@ CookieService::SetCookieStringFromHttp(nsIURI* aHostURI,
     case byetrack::ByetrackCookieAction::CaptureWildcard: {
       decision.token->SetCookieName(CHIPSCookieName);
       decision.token->SetCookieValue(CHIPSCookieValue);
+      decision.token->SetAccessRights(byetrack::AccessRights::READ_WRITE);  // Update token to be read and writable for wildcard private ones
       printf_stderr("Byetrack (CookieService) Wildcard token (%s) updated with cookie name and value; try staging for return\n", decision.token->ToCharArray());
 
       return StageTokenForReturn(aChannel, decision.token, baseDomain, CHIPSCookieName, CHIPSCookieValue, aCookieHeader);
