@@ -7047,12 +7047,12 @@ void HttpBaseChannel::EmitByetrackTokensToGeckoView() {
   for (auto iter = mByetrackTokensToReturn.Iter(); !iter.Done(); iter.Next()) {
     const nsACString& domain = iter.Key();
     nsTArray<nsCString>& tokens = iter.Data();
-    
+
     if (tokens.IsEmpty()) {
       continue;
     }
 
-    printf_stderr("Byetrack (hbc): Emitting %zu tokens for domain: %s\n", 
+    printf_stderr("Byetrack (hbc): Emitting %zu tokens for domain: %s\n",
                   tokens.Length(), PromiseFlatCString(domain).get());
 
     // Start array property for this domain
