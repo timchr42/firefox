@@ -3761,9 +3761,11 @@ HttpBaseChannel::SetCookieHeaders(const nsTArray<nsCString>& aCookieHeaders) {
 
   nsTArray<mozilla::byetrack::ByetrackToken> byetrackWildcardTokens;
   bc->Top()->GetByetrackWildcardTokensArray(byetrackWildcardTokens);
+  bool enforceByetrack = false;
+  bc->Top()->GetByetrackEnforce(enforceByetrack);
 
   for (const nsCString& cookieHeader : aCookieHeaders) {
-    nsresult rv = cs->SetCookieStringFromHttp(mURI, cookieHeader, this, byetrackWildcardTokens);
+    nsresult rv = cs->SetCookieStringFromHttp(mURI, cookieHeader, this, byetrackWildcardTokens, enforceByetrack);
     NS_ENSURE_SUCCESS(rv, rv);
   }
 

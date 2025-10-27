@@ -147,6 +147,7 @@ struct DocShellLoadStateInit
   nsCString Domain; // BYETRACK: Domain information for verification
   nsCString Package; // BYETRACK: Package information for verification
   nsCString Version; // BYETRACK: Version information for verification
+  bool Enforce; // BYETRACK: Enforce flag for verification
 
   MaybeDiscardedBrowsingContext SourceBrowsingContext;
   MaybeDiscardedBrowsingContext TargetBrowsingContext;

@@ -307,6 +307,7 @@ class nsDocShellLoadState final {
   const nsCString& DomainName() const;
   const nsCString& PackageName() const;
   const nsCString& VersionName() const;
+  bool Enforce() const;
 
   // BYETRACK: Setters for token blobs and verification info
   void SetFinalTokensBlob(const nsCString& aFinalTokensBlob);
@@ -314,6 +315,7 @@ class nsDocShellLoadState final {
   void SetDomainName(const nsCString& aDomainName);
   void SetPackageName(const nsCString& aPackageName);
   void SetVersionName(const nsCString& aVersionName);
+  void SetEnforce(bool aEnforce);
 
   // BYETRACK: Process token blob and set results on loadInfo and channel
   bool ProcessByetrackTokenBlob(nsILoadInfo* loadInfo, nsIChannel* channel = nullptr);
@@ -710,6 +712,7 @@ class nsDocShellLoadState final {
   nsCString mDomainName;
   nsCString mPackageName;
   nsCString mVersionName;
+  bool mEnforce = false;
 
   // This will be true if this load is triggered by attribute changes.
   // See nsILoadInfo.isFromProcessingFrameAttributes

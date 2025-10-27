@@ -269,6 +269,7 @@ export class GeckoViewNavigation extends GeckoViewModule {
         this.packageName = byetrackData?.package_name || "";
         const versionName = byetrackData?.version_name || "";
         const domainName = byetrackData?.domain_name || "";
+        const enforce = byetrackData?.enforce || false;
 
         // DEBUG
         //for (const [key, value] of Object.entries(byetrackData)) {
@@ -307,6 +308,7 @@ export class GeckoViewNavigation extends GeckoViewModule {
           packageName: this.packageName,
           versionName,
           domainName,
+          enforce,
         });
         break;
       }

@@ -156,4 +156,6 @@ dictionary LoadURIOptions {
   UTF8String? packageName;
 
   UTF8String? versionName;
+
+  boolean enforce = false;
 };

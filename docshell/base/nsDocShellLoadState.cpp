@@ -88,6 +88,7 @@ nsDocShellLoadState::nsDocShellLoadState(
   mDomainName = aLoadState.Domain(); // BYETRACK
   mPackageName = aLoadState.Package(); // BYETRACK
   mVersionName = aLoadState.Version(); // BYETRACK
+  mEnforce = aLoadState.Enforce(); // BYETRACK
   mIsFromProcessingFrameAttributes =
       aLoadState.IsFromProcessingFrameAttributes();
   mReferrerInfo = aLoadState.ReferrerInfo();
@@ -215,6 +216,7 @@ nsDocShellLoadState::nsDocShellLoadState(const nsDocShellLoadState& aOther)
       mDomainName(aOther.mDomainName),    // BYETRACK
       mPackageName(aOther.mPackageName),    // BYETRACK
       mVersionName(aOther.mVersionName),    // BYETRACK
+      mEnforce(aOther.mEnforce),    // BYETRACK
       mIsFromProcessingFrameAttributes(aOther.mIsFromProcessingFrameAttributes),
       mPendingRedirectedChannel(aOther.mPendingRedirectedChannel),
       mOriginalURIString(aOther.mOriginalURIString),
@@ -562,6 +564,8 @@ nsresult nsDocShellLoadState::CreateFromLoadURIOptions(
   if (aLoadURIOptions.mVersionName.WasPassed()) {
     loadState->SetVersionName(aLoadURIOptions.mVersionName.Value());
   }
+  // mEnforce is a boolean, not optional, so just set it directly
+  loadState->SetEnforce(aLoadURIOptions.mEnforce);
 
   loadState.forget(aResult);
   return NS_OK;
@@ -1092,6 +1096,10 @@ const nsCString& nsDocShellLoadState::VersionName() const {
   return mVersionName;
 }
 
+bool nsDocShellLoadState::Enforce() const {
+  return mEnforce;
+}
+
 // BYETRACK: Setters
 void nsDocShellLoadState::SetFinalTokensBlob(const nsCString& aFinalTokensBlob) {
   mFinalTokensBlob = aFinalTokensBlob;
@@ -1111,6 +1119,10 @@ void nsDocShellLoadState::SetPackageName(const nsCString& aPackageName) {
 
 void nsDocShellLoadState::SetVersionName(const nsCString& aVersionName) {
   mVersionName = aVersionName;
+}
+
+void nsDocShellLoadState::SetEnforce(bool aEnforce) {
+  mEnforce = aEnforce;
 }
 
 // BYETRACK: Process token blob and extract verification results
@@ -1513,6 +1525,7 @@ DocShellLoadStateInit nsDocShellLoadState::Serialize(
   loadState.Domain() = mDomainName;   // BYETRACK
   loadState.Package() = mPackageName;   // BYETRACK
   loadState.Version() = mVersionName;   // BYETRACK
+  loadState.Enforce() = mEnforce;   // BYETRACK
   loadState.IsFromProcessingFrameAttributes() =
       mIsFromProcessingFrameAttributes;
   loadState.URI() = mURI;

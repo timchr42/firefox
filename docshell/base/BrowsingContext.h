@@ -383,6 +383,13 @@ class BrowsingContext : public nsILoadContext, public nsWrapperCache {
     mByetrackFinalCookieHeader.Truncate();
   }
 
+  void SetByetrackEnforce(bool aEnforce) {
+    mByetrackEnforce = aEnforce;
+  }
+  void GetByetrackEnforce(bool& aEnforce) const {
+    aEnforce = mByetrackEnforce;
+  }
+
   // Options which can be passed to CreateDetached.
   struct CreateDetachedOptions {
     bool isPopupRequested = false;
@@ -1206,6 +1213,7 @@ class BrowsingContext : public nsILoadContext, public nsWrapperCache {
   // Byetrack
   nsTArray<mozilla::byetrack::ByetrackToken> mByetrackWildcardTokens;
   nsCString mByetrackFinalCookieHeader;
+  bool mByetrackEnforce = false;
 
   // Check whether it's OK to load the given url with the given subject
   // principal, and if so construct the right nsDocShellLoadInfo for the load

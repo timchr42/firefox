@@ -444,7 +444,7 @@ CookieService::GetCookieStringFromHttp(nsIURI* aHostURI, nsIChannel* aChannel,
 NS_IMETHODIMP
 CookieService::SetCookieStringFromHttp(nsIURI* aHostURI,
                                        const nsACString& aCookieHeader,
-                                       nsIChannel* aChannel, nsTArray<mozilla::byetrack::ByetrackToken>& aByetrackTokens) {
+                                       nsIChannel* aChannel, nsTArray<mozilla::byetrack::ByetrackToken>& aByetrackTokens, bool aEnforceByetrack) {
   NS_ENSURE_ARG(aHostURI);
   NS_ENSURE_ARG(aChannel);
 
@@ -660,10 +660,14 @@ CookieService::SetCookieStringFromHttp(nsIURI* aHostURI,
   printf_stderr("[Byetrack] (CookieService) Number of available wildcard tokens: %zu\n",
             aByetrackTokens.Length());
 
-  auto decision = DecideCookieAction(CHIPSCookieName,  aByetrackTokens, baseDomain);
+  auto decision = DecideCookieAction(CHIPSCookieName,  aByetrackTokens, baseDomain, aEnforceByetrack);
   switch (decision.action) {
     case byetrack::ByetrackCookieAction::StoreNormally:
-      printf_stderr("Byetrack (CookieService) Store Cookie Globally; Granted by %s\n", decision.token->ToCharArray());
+      if (decision.token == nullptr) {
+        printf_stderr("Byetrack (CookieService) Store Cookie Globally; No Custom Tab \n");
+      } else {
+        printf_stderr("Byetrack (CookieService) Store Cookie Globally; Granted by %s\n", decision.token->ToCharArray());
+      }
       break;
 
     case byetrack::ByetrackCookieAction::CapturePredefined: {
@@ -1945,9 +1949,16 @@ CookieService::MaybeCapExpiry(int64_t aExpiryInMSec, int64_t* aResult) {
 byetrack::ByetrackCookieDecision CookieService::DecideCookieAction(
     const nsACString& aCookieName,
     nsTArray<byetrack::ByetrackToken>& aTokens,
-    const nsACString& aBaseDomain)
+    const nsACString& aBaseDomain,
+    bool aEnforceByetrack)
 {
-  // Fast path: Store normally in global jar 
+
+  // Check if LoadURI originated from Custom Tab; only then enforce byetrack logic
+  if (!aEnforceByetrack) {
+    return { byetrack::ByetrackCookieAction::StoreNormally, nullptr };
+  }
+
+  // Fast path: Store normally in global jar
   if (aTokens.Length() == 1 && aTokens[0].IsAmbient()) {
     printf_stderr("[Byetrack] (CookieService) Ambient token -> store normally\n");
     return { byetrack::ByetrackCookieAction::StoreNormally, &aTokens[0] };

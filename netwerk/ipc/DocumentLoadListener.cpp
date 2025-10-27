@@ -187,6 +187,15 @@ static void ApplyByetrackFromLoadStateToBrowserContext(nsDocShellLoadState* aLoa
     return;
   }
 
+  bool enforce = aLoadState->Enforce();
+  aBrowsingContext->SetByetrackEnforce(enforce);
+  printf_stderr("Byetrack (Listener) Set enforce flag on Browsing Context: %d\n", enforce);
+
+  if (!enforce) {
+    printf_stderr("[Byetrack] Enforcement flag not set, skipping Byetrack processing\n");
+    return;
+  }
+
   // skip if tokens are already set
   nsTArray<ByetrackToken> existing;
   aBrowsingContext->GetByetrackWildcardTokensArray(existing);

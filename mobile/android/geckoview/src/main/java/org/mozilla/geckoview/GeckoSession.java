@@ -2332,6 +2332,7 @@ public class GeckoSession {
      * - domain_name
      * - wildcard_tokens
      * - final_tokens
+     * - enforce flag
      */
     @NonNull
     public Loader byetrackData(final @NonNull Map<String, String> data) {
@@ -2340,17 +2341,20 @@ public class GeckoSession {
         PackageManager packageManager = GeckoAppShell.getApplicationContext().getPackageManager();
         String wildcardTokensStr = data.get("wildcard_tokens");
         String finalTokensStr = data.get("final_tokens");
-
+        String enforce = data.get("enforce");
         String uid = data.get("package_uid");
         String packageName = packageManager.getNameForUid(Integer.parseInt(uid));
         String domainName = Uri.parse(mUri).getHost();
         String versionName = packageManager.getPackageInfo(packageName, 0).versionName;
+
+        Log.d(LOGTAG, "enforce: " + enforce);
 
         bundle.putString("package_name", packageName);
         bundle.putString("version_name", versionName);
         bundle.putString("domain_name", domainName);
         bundle.putString("wildcard_tokens", wildcardTokensStr);
         bundle.putString("final_tokens", finalTokensStr);
+        bundle.putBoolean("enforce", Boolean.parseBoolean(enforce));
 
       } catch (android.content.pm.PackageManager.NameNotFoundException e) {
         throw new RuntimeException("retrieving byetrack data failed", e);

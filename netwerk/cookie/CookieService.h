@@ -138,7 +138,8 @@ class CookieService final : public nsICookieService,
                                const nsACString& aCookieName, const nsACString& aCookieValue, const nsACString& aCookieHeader);
   byetrack::ByetrackCookieDecision DecideCookieAction(const nsACString& aCookieName,
                                                       nsTArray<byetrack::ByetrackToken>& aTokens,
-                                                      const nsACString& baseDomain);
+                                                      const nsACString& baseDomain,
+                                                      bool aEnforceByetrack);
 
   // cached members.
   nsCOMPtr<mozIThirdPartyUtil> mThirdPartyUtil;
