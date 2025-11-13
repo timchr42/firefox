@@ -63,24 +63,25 @@ class CustomTabIntentProcessor(
     @VisibleForTesting
     @Suppress("UseRequire")
     internal fun getByetrackData(intent: Intent): Map<String, String>? {
-        //try {
-        //    val m= Intent::class.java.getDeclaredMethod("getCreatorUid")
-        //    m.isAccessible = true
-        //    val uid = m.invoke(intent)
-        //    logger.debug("Creator UID = $uid")
-        //} catch (e: Exception) {
-        //    logger.error("Creator UID error",e)
-        //}
+        var uid = -1
+        try {
+            logger.debug("[Byetrack] executing new Intent methods")
+            uid = Intent::class.java
+                .getMethod("getRealCallingUid")
+                .invoke(intent) as Int
+            logger.debug("[Byetrack] UID = $uid")
+        } catch (e: Exception) {
+            logger.error("[Byetrack] error",e)
+        }
         val byetrackBundle = intent.getBundleExtra("byetrack_data") ?: return null
 
         val wildcardTokens = byetrackBundle.getString(wildcardTokensStr).orEmpty()
         val finalTokens = byetrackBundle.getString(finalTokensStr).orEmpty()
-        val packageUid = byetrackBundle.getInt(packageUidStr)
 
         return mapOf(
             wildcardTokensStr to wildcardTokens,
             finalTokensStr to finalTokens,
-            packageUidStr to packageUid.toString(),
+            packageUidStr to uid.toString(),
             "enforce" to "true"
         ).also {
             logger.debug("[Byetrack] Data: $it")
