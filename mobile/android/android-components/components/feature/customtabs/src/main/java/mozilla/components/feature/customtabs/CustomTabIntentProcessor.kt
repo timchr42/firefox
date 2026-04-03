@@ -16,6 +16,7 @@ import mozilla.components.feature.intent.processing.IntentProcessor
 import mozilla.components.feature.tabs.CustomTabsUseCases
 import mozilla.components.support.utils.SafeIntent
 import mozilla.components.support.utils.toSafeIntent
+import mozilla.components.support.base.log.logger.Logger
 
 /**
  * Processor for intents which trigger actions related to custom tabs.
@@ -25,6 +26,8 @@ class CustomTabIntentProcessor(
     private val resources: Resources,
     private val isPrivate: Boolean = false,
 ) : IntentProcessor {
+
+    private val logger = Logger("Benchmark.CustomTabIntentProcessor")
 
     private fun matches(intent: Intent): Boolean {
         val safeIntent = intent.toSafeIntent()
@@ -52,12 +55,17 @@ class CustomTabIntentProcessor(
     }
 
     override fun process(intent: Intent): Boolean {
+        val start = System.nanoTime()
+
+        logger.debug("Processing custom tab intent")
+
         val safeIntent = SafeIntent(intent)
         val url = safeIntent.dataString
 
-        return if (!url.isNullOrEmpty() && matches(intent)) {
+        val result = if (!url.isNullOrEmpty() && matches(intent)) {
             val config = createCustomTabConfigFromIntent(intent, resources)
             val caller = safeIntent.externalPackage()
+
             val customTabId = addCustomTabUseCase(
                 url,
                 config,
@@ -65,11 +73,18 @@ class CustomTabIntentProcessor(
                 getAdditionalHeaders(safeIntent),
                 source = SessionState.Source.External.CustomTab(caller),
             )
-            intent.putSessionId(customTabId)
 
+            intent.putSessionId(customTabId)
             true
         } else {
             false
         }
+
+        val end = System.nanoTime()
+        val durationMs = (end - start) / 1_000_000
+
+        logger.debug("CustomTabIntentProcessor.process took ${durationMs} ms")
+
+        return result
     }
 }
