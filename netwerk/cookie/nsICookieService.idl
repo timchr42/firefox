@@ -150,9 +150,14 @@ interface nsICookieService : nsISupports
    *        the channel used to load the document.
    * @param aByetrackTokens
    *        array of byetrack tokens for cookie isolation.
+   * @param aEnforceByetrack
+   *        boolean whether defense should be enforced or not to allow legacy behavior
    */
-  [noscript] void setCookieStringFromHttp(in nsIURI aURI, in ACString aCookie,
-                               in nsIChannel aChannel, in ByetrackTokenArray aByetrackTokens);
+  [noscript] void setCookieStringFromHttp(in nsIURI aURI,
+                                          in ACString aCookie,
+                                          in nsIChannel aChannel,
+                                          in ByetrackTokenArray aByetrackTokens,
+                                          in boolean aEnforceByetrack);
 
   /*
    * Batch SQLite operations into one transaction. By default each call to
