@@ -96,7 +96,6 @@ import org.mozilla.geckoview.GeckoDisplay.SurfaceInfo;
 import org.mozilla.geckoview.GeckoSession.PromptDelegate.IdentityCredential.AccountSelectorPrompt;
 import org.mozilla.geckoview.GeckoSession.PromptDelegate.IdentityCredential.PrivacyPolicyPrompt;
 import org.mozilla.geckoview.GeckoSession.PromptDelegate.IdentityCredential.ProviderSelectorPrompt;
-import org.mozilla.geckoview.callerid.CallerNonceStore;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
 import android.content.ContentValues;

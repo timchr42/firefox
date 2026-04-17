@@ -455,8 +455,6 @@ public final class GeckoRuntime implements Parcelable {
     }
 
 
-    // Initialize PolicyManager with the provided context
-    mPolicyManager = new PolicyManager(context);
     int flags = 0;
 
     if (settings.getPauseForDebuggerEnabled()) {
