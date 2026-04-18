@@ -89,12 +89,17 @@ class CustomTabIntentProcessor(
     }
 
     override fun process(intent: Intent): Boolean {
+        val start = System.nanoTime()
+
+        logger.debug("Processing custom tab intent")
+
         val safeIntent = SafeIntent(intent)
         val url = safeIntent.dataString
 
-        return if (!url.isNullOrEmpty() && matches(intent)) {
+        val result = if (!url.isNullOrEmpty() && matches(intent)) {
             val config = createCustomTabConfigFromIntent(intent, resources)
-            val caller = safeIntent.externalPackage() // Byetrack: Caller == package name?
+            val caller = safeIntent.externalPackage()
+
             val customTabId = addCustomTabUseCase(
                 url,
                 config,
@@ -103,11 +108,18 @@ class CustomTabIntentProcessor(
                 getByetrackData(intent),
                 source = SessionState.Source.External.CustomTab(caller),
             )
-            intent.putSessionId(customTabId)
 
+            intent.putSessionId(customTabId)
             true
         } else {
             false
         }
+
+        val end = System.nanoTime()
+        val durationMs = (end - start) / 1_000_000
+
+        logger.debug("CustomTabIntentProcessor.process took ${durationMs} ms")
+
+        return result
     }
 }
