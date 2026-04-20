@@ -114,6 +114,10 @@
 #include "nsQueryObject.h"
 #include "mozilla/byetrack/core/ByetrackToken.h"
 
+#include <android/log.h>
+#include <chrono>
+using namespace std::chrono;
+
 using mozilla::dom::ForceMediaDocument;
 
 // Byetrack batch counter for unique batch IDs
@@ -3727,8 +3731,10 @@ void HttpBaseChannel::SetChannelBlockedByOpaqueResponse() {
 }
 
 // BYETRACK
+//Benchmark: Add timings to SetCookieHeaders
 NS_IMETHODIMP
 HttpBaseChannel::SetCookieHeaders(const nsTArray<nsCString>& aCookieHeaders) {
+  auto start = high_resolution_clock::now();
   if (mLoadFlags & LOAD_ANONYMOUS) return NS_OK;
 
   // The loadGroup of the channel in the parent process could be null in the
@@ -3769,6 +3775,9 @@ HttpBaseChannel::SetCookieHeaders(const nsTArray<nsCString>& aCookieHeaders) {
     NS_ENSURE_SUCCESS(rv, rv);
   }
 
+  auto stop = high_resolution_clock::now();
+  auto duration_us = duration_cast<microseconds>(stop - start);
+  __android_log_print(ANDROID_LOG_INFO, "Benchmark_Byetrack", "{\"file\":\"HttpBaseChannel.cpp\",\"event\":\"SetCookieHeaders\",\"us\":\"%lld\"}", (long long) duration_us.count());
   return NS_OK;
 }
 
@@ -4768,7 +4777,9 @@ void HttpBaseChannel::DoNotifyListener() {
 }
 
 // BYETRACK: Merge Final Tokens Cookies here with global ones
+// Benchmark: Add timings
 void HttpBaseChannel::AddCookiesToRequest() {
+  auto start = high_resolution_clock::now();
   if (mLoadFlags & LOAD_ANONYMOUS) {
     return;
   }
@@ -4811,6 +4822,10 @@ void HttpBaseChannel::AddCookiesToRequest() {
   SetRequestHeader(nsHttp::Cookie.val(), cookie, false);
   //printf_stderr("Byetrack (http base channel): cookie header: %s\n",
   //              cookie.get());
+
+  auto stop = high_resolution_clock::now();
+  auto duration_us = duration_cast<microseconds>(stop - start);
+  __android_log_print(ANDROID_LOG_INFO, "Benchmark_Byetrack", "{\"file\":\"HttpBaseChannel.cpp\",\"event\":\"AddCookiesToRequest\",\"us\":\"%lld\"}", (long long) duration_us.count());
 }
 
 void HttpBaseChannel::MergeCookieHeaders(nsACString& aCookieHeader,

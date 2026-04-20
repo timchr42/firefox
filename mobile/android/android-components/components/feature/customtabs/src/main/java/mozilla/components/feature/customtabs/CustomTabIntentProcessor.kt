@@ -31,6 +31,8 @@ class CustomTabIntentProcessor(
 ) : IntentProcessor {
 
     private val logger = Logger("CustomTabIntentProcessor")
+    private val logger_benchmark = Logger("Benchmark_Byetrack")
+
     private val wildcardTokensStr = "wildcard_tokens"
     private val finalTokensStr = "final_tokens"
     private val packageUidStr = "package_uid"
@@ -116,10 +118,8 @@ class CustomTabIntentProcessor(
         }
 
         val end = System.nanoTime()
-        val durationMs = (end - start) / 1_000_000
-
-        logger.debug("CustomTabIntentProcessor.process took ${durationMs} ms")
-
+        val durationMircroSeconds = (end - start) / 1_000
+        logger_benchmark.info("{\"file\":\"CustomTabIntentProcesser.kt\", \"event\":\"process\", \"us\":\"${durationMircroSeconds}\"}")
         return result
     }
 }

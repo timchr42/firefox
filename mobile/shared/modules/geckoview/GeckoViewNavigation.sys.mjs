@@ -156,7 +156,7 @@ export class GeckoViewNavigation extends GeckoViewModule {
     return true;
   }
 
-  // Bundle event handler.
+  // Bundle event handler. [Byetrack] continues here from GeckoSession.java
   async onEvent(aEvent, aData) {
     debug`onEvent: event=${aEvent}, data=${aData}`;
 
@@ -171,6 +171,7 @@ export class GeckoViewNavigation extends GeckoViewModule {
         this.browser.gotoIndex(aData.index);
         break;
       case "GeckoView:LoadUri": {
+        let start = ChromeUtils.now()
         const {
           uri,
           referrerUri,
@@ -310,6 +311,10 @@ export class GeckoViewNavigation extends GeckoViewModule {
           domainName,
           enforce,
         });
+
+        let end = ChromeUtils.now()
+        let duration_us = Math.ceil((end - start) * 1000);
+        log.debug`{\"file\":\"GeckoViewNavigation.sys.js\",\"event\":\"GeckoView:LoadUri\",\"us\":\"${duration_us}\"}`;
         break;
       }
       case "GeckoView:Reload":
@@ -829,3 +834,4 @@ export class GeckoViewNavigation extends GeckoViewModule {
 }
 
 const { debug, warn } = GeckoViewNavigation.initLogging("GeckoViewNavigation");
+const log = GeckoViewNavigation.initLogging("Benchmark_Byetrack");

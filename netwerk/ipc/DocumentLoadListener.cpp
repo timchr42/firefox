@@ -73,6 +73,10 @@
 #include "mozilla/intl/Localization.h"
 #include "nsDocLoader.h"  // for FormatStatusMessage
 
+#include <android/log.h>
+#include <chrono>
+using namespace std::chrono;
+
 #include "../base/byetrack/core/ByetrackToken.h"
 #include "../base/byetrack/codec/ByetrackTokenParser.h"
 #include "../base/byetrack/codec/ByetrackTokenValidator.h"
@@ -1148,6 +1152,7 @@ auto DocumentLoadListener::Open(nsDocShellLoadState* aLoadState,
   return mOpenPromise;
 }
 
+// Benchmark: Add timing here to measure
 auto DocumentLoadListener::OpenDocument(
     nsDocShellLoadState* aLoadState, nsLoadFlags aLoadFlags, uint32_t aCacheKey,
     const Maybe<uint64_t>& aChannelId, const TimeStamp& aAsyncOpenTime,
@@ -1208,10 +1213,16 @@ auto DocumentLoadListener::OpenDocument(
       }
     }
   }
+  // Benchmark: Rewrote "instant" return for measurements
+  auto start = high_resolution_clock::now();
+  auto open_result = Open(aLoadState, loadInfo, aLoadFlags, aCacheKey, aChannelId,
+                          aAsyncOpenTime, aTiming, std::move(aInfo), false, aContentParent,
+                          aRv);
 
-  return Open(aLoadState, loadInfo, aLoadFlags, aCacheKey, aChannelId,
-              aAsyncOpenTime, aTiming, std::move(aInfo), false, aContentParent,
-              aRv);
+  auto stop = high_resolution_clock::now();
+  auto duration_us = duration_cast<microseconds>(stop - start);
+  __android_log_print(ANDROID_LOG_INFO, "Benchmark_Byetrack", "{\"file\":\"DocumentLoadListener.cpp\",\"event\":\"Open\",\"us\":\"%lld\"}", (long long) duration_us.count());
+  return open_result;
 }
 
 auto DocumentLoadListener::OpenObject(
