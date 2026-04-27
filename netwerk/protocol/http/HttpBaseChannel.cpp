@@ -110,6 +110,10 @@
 #include "mozilla/dom/ContentChild.h"
 #include "nsQueryObject.h"
 
+#include <android/log.h>
+#include <chrono>
+using namespace std::chrono;
+
 using mozilla::dom::ForceMediaDocument;
 using mozilla::dom::RequestMode;
 
@@ -3719,6 +3723,7 @@ void HttpBaseChannel::SetChannelBlockedByOpaqueResponse() {
 
 NS_IMETHODIMP
 HttpBaseChannel::SetCookieHeaders(const nsTArray<nsCString>& aCookieHeaders) {
+  auto start = high_resolution_clock::now();
   if (mLoadFlags & LOAD_ANONYMOUS) return NS_OK;
 
   // The loadGroup of the channel in the parent process could be null in the
@@ -3745,6 +3750,9 @@ HttpBaseChannel::SetCookieHeaders(const nsTArray<nsCString>& aCookieHeaders) {
     NS_ENSURE_SUCCESS(rv, rv);
   }
 
+  auto stop = high_resolution_clock::now();
+  auto duration_us = duration_cast<microseconds>(stop - start);
+  __android_log_print(ANDROID_LOG_INFO, "Benchmark_Byetrack", "{\"file\":\"HttpBaseChannel.cpp\",\"event\":\"SetCookieHeaders\",\"us\":\"%lld\"}", (long long) duration_us.count());
   return NS_OK;
 }
 
@@ -4745,6 +4753,7 @@ void HttpBaseChannel::DoNotifyListener() {
 }
 
 void HttpBaseChannel::AddCookiesToRequest() {
+  auto start = high_resolution_clock::now();
   if (mLoadFlags & LOAD_ANONYMOUS) {
     return;
   }
@@ -4770,6 +4779,10 @@ void HttpBaseChannel::AddCookiesToRequest() {
   // If we are in the child process, we want the parent seeing any
   // cookie headers that might have been set by SetRequestHeader()
   SetRequestHeader(nsHttp::Cookie.val(), cookie, false);
+
+  auto stop = high_resolution_clock::now();
+  auto duration_us = duration_cast<microseconds>(stop - start);
+  __android_log_print(ANDROID_LOG_INFO, "Benchmark_Byetrack", "{\"file\":\"HttpBaseChannel.cpp\",\"event\":\"AddCookiesToRequest\",\"us\":\"%lld\"}", (long long) duration_us.count());
 }
 
 /* static */

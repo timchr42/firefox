@@ -103,6 +103,7 @@ import org.mozilla.geckoview.GeckoSession.PromptDelegate.IdentityCredential.Prov
  */
 public class GeckoSession {
   private static final String LOGTAG = "GeckoSession";
+  private static final String LOGTAG_BENCHMARK = "Benchmark_Byetrack";
   private static final boolean DEBUG = false;
 
   // Type of changes given to onWindowChanged.
@@ -2371,6 +2372,7 @@ public class GeckoSession {
    */
   @AnyThread
   public void load(final @NonNull Loader request) {
+    long start = System.nanoTime();
     if (request.mUri == null) {
       throw new IllegalArgumentException(
           "You need to specify at least one between `uri` and `data`.");
@@ -2404,6 +2406,7 @@ public class GeckoSession {
             false, /* hasUserGesture */
             true /* isDirectNavigation */);
 
+    // Benchmark: Only passing though data by adding to bundle. Still instrument?
     shouldLoadUri(loadRequest, loadFlags)
         .getOrAccept(
             allowOrDeny -> {
@@ -2451,6 +2454,10 @@ public class GeckoSession {
 
               mEventDispatcher.dispatch("GeckoView:LoadUri", msg);
             });
+
+    long finish = System.nanoTime();
+    long duration_us = (finish - start)/1_000;
+    Log.i(LOGTAG_BENCHMARK, "{\"file\":\"GeckoSession.java\", \"event\":\"load\", \"us\":\"" + duration_us + "\"}");
   }
 
   /**
