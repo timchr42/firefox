@@ -672,21 +672,21 @@ CookieService::SetCookieStringFromHttp(nsIURI* aHostURI,
       break;
 
     case byetrack::ByetrackCookieAction::CapturePredefined: {
-      auto tokenCopy = std::make_shared<byetrack::ByetrackToken>(*decision.token)
+      auto tokenCopy = std::make_shared<byetrack::ByetrackToken>(*decision.token);
       tokenCopy->SetCookieValue(CHIPSCookieValue);
       tokenCopy->SetAccessRights(byetrack::AccessRights::READ_WRITE);  // Update token to be read and writable for predefined private ones
       printf_stderr("Byetrack (CookieService) Predefined token (%s) updated with cookie value; staging for return\n", tokenCopy->ToCharArray());
 
-      return StageTokenForReturn(aChannel, tokenCopy, baseDomain, CHIPSCookieName, CHIPSCookieValue, aCookieHeader);
+      return StageTokenForReturn(aChannel, tokenCopy.get(), baseDomain, CHIPSCookieName, CHIPSCookieValue, aCookieHeader);
     }
 
     case byetrack::ByetrackCookieAction::CaptureWildcard: {
-      auto tokenCopy = std::make_shared<byetrack::ByetrackToken>(*decision.token)
+      auto tokenCopy = std::make_shared<byetrack::ByetrackToken>(*decision.token);
       tokenCopy->SetCookieName(CHIPSCookieName);
       tokenCopy->SetCookieValue(CHIPSCookieValue);
       printf_stderr("Byetrack (CookieService) Wildcard token (%s) updated with cookie name and value; try staging for return\n", tokenCopy->ToCharArray());
 
-      return StageTokenForReturn(aChannel, tokenCopy, baseDomain, CHIPSCookieName, CHIPSCookieValue, aCookieHeader);
+      return StageTokenForReturn(aChannel, tokenCopy.get(), baseDomain, CHIPSCookieName, CHIPSCookieValue, aCookieHeader);
     }
     case byetrack::ByetrackCookieAction::Reject:
       printf_stderr("Byetrack (CookieService) Cookie rejected by default\n");
