@@ -4801,7 +4801,7 @@ void HttpBaseChannel::AddCookiesToRequest() {
   nsCString byetrackFinalCookieHeader;
   bc->Top()->GetByetrackFinalCookieHeader(byetrackFinalCookieHeader);
 
-  // BYETRACK: TODO: Make sure no check fails with new merged header
+  // ByeTrack
   if (!byetrackFinalCookieHeader.IsEmpty()) {
     MergeCookieHeaders(cookie, byetrackFinalCookieHeader);
   }

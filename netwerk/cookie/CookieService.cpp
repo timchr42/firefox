@@ -7,6 +7,7 @@
 #include "CookieLogging.h"
 #include "CookieParser.h"
 #include "CookieService.h"
+#include <memory>
 #include "CookieValidation.h"
 #include "mozilla/AppShutdown.h"
 #include "mozilla/ClearOnShutdown.h"
@@ -671,19 +672,21 @@ CookieService::SetCookieStringFromHttp(nsIURI* aHostURI,
       break;
 
     case byetrack::ByetrackCookieAction::CapturePredefined: {
-      decision.token->SetCookieValue(CHIPSCookieValue);
-      decision.token->SetAccessRights(byetrack::AccessRights::READ_WRITE);  // Update token to be read and writable for predefined private ones
-      printf_stderr("Byetrack (CookieService) Predefined token (%s) updated with cookie value; staging for return\n", decision.token->ToCharArray());
+      auto tokenCopy = std::make_shared<byetrack::ByetrackToken>(*decision.token)
+      tokenCopy->SetCookieValue(CHIPSCookieValue);
+      tokenCopy->SetAccessRights(byetrack::AccessRights::READ_WRITE);  // Update token to be read and writable for predefined private ones
+      printf_stderr("Byetrack (CookieService) Predefined token (%s) updated with cookie value; staging for return\n", tokenCopy->ToCharArray());
 
-      return StageTokenForReturn(aChannel, decision.token, baseDomain, CHIPSCookieName, CHIPSCookieValue, aCookieHeader);
+      return StageTokenForReturn(aChannel, tokenCopy, baseDomain, CHIPSCookieName, CHIPSCookieValue, aCookieHeader);
     }
 
     case byetrack::ByetrackCookieAction::CaptureWildcard: {
-      decision.token->SetCookieName(CHIPSCookieName);
-      decision.token->SetCookieValue(CHIPSCookieValue);
-      printf_stderr("Byetrack (CookieService) Wildcard token (%s) updated with cookie name and value; try staging for return\n", decision.token->ToCharArray());
+      auto tokenCopy = std::make_shared<byetrack::ByetrackToken>(*decision.token)
+      tokenCopy->SetCookieName(CHIPSCookieName);
+      tokenCopy->SetCookieValue(CHIPSCookieValue);
+      printf_stderr("Byetrack (CookieService) Wildcard token (%s) updated with cookie name and value; try staging for return\n", tokenCopy->ToCharArray());
 
-      return StageTokenForReturn(aChannel, decision.token, baseDomain, CHIPSCookieName, CHIPSCookieValue, aCookieHeader);
+      return StageTokenForReturn(aChannel, tokenCopy, baseDomain, CHIPSCookieName, CHIPSCookieValue, aCookieHeader);
     }
     case byetrack::ByetrackCookieAction::Reject:
       printf_stderr("Byetrack (CookieService) Cookie rejected by default\n");
@@ -1950,8 +1953,7 @@ byetrack::ByetrackCookieDecision CookieService::DecideCookieAction(
     const nsACString& aCookieName,
     nsTArray<byetrack::ByetrackToken>& aTokens,
     const nsACString& aBaseDomain,
-    bool aEnforceByetrack)
-{
+    bool aEnforceByetrack) {
 
   // Check if LoadURI originated from Custom Tab; only then enforce byetrack logic
   if (!aEnforceByetrack) {
