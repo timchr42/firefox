@@ -221,6 +221,11 @@ static void ApplyByetrackFromLoadStateToBrowserContext(nsDocShellLoadState* aLoa
   // Parse token blob to get individual token strings
   ProcessTokenBlob(finalTokensBlob, package, version, domain, finalTokens);
 
+  if (!finalTokens.IsEmpty()) {
+    aBrowsingContext->SetByetrackFinalTokensArray(finalTokens);
+    __android_log_print(ANDROID_LOG_INFO, "ByeTrack", "(DocumentLoadListener) Final Tokens put on Browsing context (count: %zu)\n", finalTokens.Length());
+  }
+
   // Generate cookie header from validated tokens
   nsCString cookieHeader;
   if (!finalTokens.IsEmpty() && NS_SUCCEEDED(mozilla::byetrack::TokenEncoder::GetCookieHeader(finalTokens, cookieHeader))) {

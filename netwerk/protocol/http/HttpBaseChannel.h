@@ -46,6 +46,10 @@
 #include "nsTArray.h"
 #include "nsThreadUtils.h"
 
+#include "mozilla/byetrack/core/ByetrackTypes.h"
+#include "mozilla/byetrack/core/ByetrackToken.h"
+#include "mozilla/byetrack/core/ByetrackConstants.h"
+
 #define HTTP_BASE_CHANNEL_IID \
   {0x9d5cde03, 0xe6e9, 0x4612, {0xbf, 0xef, 0xbb, 0x66, 0xf3, 0xbb, 0x74, 0x46}}
 
@@ -296,10 +300,6 @@ class HttpBaseChannel : public nsHashPropertyBag,
   NS_IMETHOD GetInitialRwin(uint32_t* aRwin) override;
   NS_IMETHOD SetInitialRwin(uint32_t aRwin) override;
   NS_IMETHOD ForcePending(bool aForcePending) override;
-  NS_IMETHOD AddByetrackTokenToReturn(const nsACString& aToken) override;
-  NS_IMETHOD AddByetrackTokenToReturnForDomain(const nsACString& aDomain, const nsACString& aToken) override;
-  NS_IMETHOD TakeByetrackTokensToReturn(nsTArray<nsCString>* aOut) override;
-  NS_IMETHOD TakeByetrackTokensToReturnForDomain(const nsACString& aDomain, nsTArray<nsCString>* aOut) override;
 
   NS_IMETHOD GetLastModifiedTime(PRTime* lastModifiedTime) override;
   NS_IMETHOD GetCorsIncludeCredentials(bool* aInclude) override;
@@ -442,6 +442,11 @@ class HttpBaseChannel : public nsHashPropertyBag,
       nsTArray<net::ConsoleReportCollected>& aReports) override;
 
   void ClearConsoleReports() override;
+
+  nsresult AddByetrackTokenToReturn(const byetrack::ByetrackToken& aToken);
+  nsresult AddByetrackTokenToReturnForDomain(const nsACString& aDomain, const byetrack::ByetrackToken& aToken);
+  nsresult TakeByetrackTokensToReturn(nsTArray<byetrack::ByetrackToken>* aOut);
+  nsresult TakeByetrackTokensToReturnForDomain(const nsACString& aDomain, nsTArray<byetrack::ByetrackToken>* aOut);
 
   class nsContentEncodings : public nsStringEnumeratorBase {
    public:
@@ -751,9 +756,14 @@ class HttpBaseChannel : public nsHashPropertyBag,
   RefPtr<OpaqueResponseBlocker> mORB;
 
  private:
-  // BYETRACK: Helper to emit tokens to GeckoView bridge
+  // ByeTrack Helpers
+
+  // Emits tokens to GeckoView bridge
   void EmitByetrackTokensToGeckoView();
-  
+
+  // Checks added tokens against cookies received from app
+  nsresult CheckByetrackTokensToReturn();
+
   // Proxy release all members above on main thread.
   void ReleaseMainThreadOnlyReferences();
 
@@ -789,7 +799,8 @@ class HttpBaseChannel : public nsHashPropertyBag,
   nsTArray<nsCString> mMatchedTrackingFullHashes;
 
   // Byetrack tokens-to-return storage/helpers
-  nsTHashMap<nsCString, nsTArray<nsCString>> mByetrackTokensToReturn;
+  //nsTHashMap<nsCString, nsTArray<nsCString>> mByetrackTokensToReturn;
+  nsTHashMap<nsCString, nsTArray<byetrack::ByetrackToken>> mByetrackTokensToReturn;
   bool mByetrackBatchEmitted = false;
   uint64_t mByetrackBatchId = 0; // 0 == not assigned yet
 

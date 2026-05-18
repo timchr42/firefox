@@ -7,6 +7,7 @@
 #include "CookieLogging.h"
 #include "CookieParser.h"
 #include "CookieService.h"
+#include <memory>
 #include "CookieValidation.h"
 #include "mozilla/AppShutdown.h"
 #include "mozilla/ClearOnShutdown.h"
@@ -39,9 +40,10 @@
 #include "nsNetUtil.h"
 #include "ThirdPartyUtil.h"
 
-#include "core/ByetrackTypes.h"
-#include "core/ByetrackToken.h"
-#include "codec/ByetrackTokenEncoder.h"
+#include "mozilla/byetrack/core/ByetrackTypes.h"
+#include "mozilla/byetrack/core/ByetrackToken.h"
+#include "mozilla/byetrack/codec/ByetrackTokenEncoder.h"
+#include "nsQueryObject.h"
 
 using namespace mozilla::dom;
 
@@ -671,19 +673,21 @@ CookieService::SetCookieStringFromHttp(nsIURI* aHostURI,
       break;
 
     case byetrack::ByetrackCookieAction::CapturePredefined: {
-      decision.token->SetCookieValue(CHIPSCookieValue);
-      decision.token->SetAccessRights(byetrack::AccessRights::READ_WRITE);  // Update token to be read and writable for predefined private ones
-      printf_stderr("Byetrack (CookieService) Predefined token (%s) updated with cookie value; staging for return\n", decision.token->ToCharArray());
+      auto tokenCopy = std::make_shared<byetrack::ByetrackToken>(*decision.token);
+      tokenCopy->SetCookieValue(CHIPSCookieValue);
+      tokenCopy->SetAccessRights(byetrack::AccessRights::READ_WRITE);  // Update token to be read and writable for predefined private ones
+      printf_stderr("Byetrack (CookieService) Predefined token (%s) updated with cookie value; staging for return\n", tokenCopy->ToCharArray());
 
-      return StageTokenForReturn(aChannel, decision.token, baseDomain, CHIPSCookieName, CHIPSCookieValue, aCookieHeader);
+      return StageTokenForReturn(aChannel, tokenCopy.get(), baseDomain);
     }
 
     case byetrack::ByetrackCookieAction::CaptureWildcard: {
-      decision.token->SetCookieName(CHIPSCookieName);
-      decision.token->SetCookieValue(CHIPSCookieValue);
-      printf_stderr("Byetrack (CookieService) Wildcard token (%s) updated with cookie name and value; try staging for return\n", decision.token->ToCharArray());
+      auto tokenCopy = std::make_shared<byetrack::ByetrackToken>(*decision.token);
+      tokenCopy->SetCookieName(CHIPSCookieName);
+      tokenCopy->SetCookieValue(CHIPSCookieValue);
+      printf_stderr("Byetrack (CookieService) Wildcard token (%s) updated with cookie name and value; try staging for return\n", tokenCopy->ToCharArray());
 
-      return StageTokenForReturn(aChannel, decision.token, baseDomain, CHIPSCookieName, CHIPSCookieValue, aCookieHeader);
+      return StageTokenForReturn(aChannel, tokenCopy.get(), baseDomain);
     }
     case byetrack::ByetrackCookieAction::Reject:
       printf_stderr("Byetrack (CookieService) Cookie rejected by default\n");
@@ -1950,8 +1954,7 @@ byetrack::ByetrackCookieDecision CookieService::DecideCookieAction(
     const nsACString& aCookieName,
     nsTArray<byetrack::ByetrackToken>& aTokens,
     const nsACString& aBaseDomain,
-    bool aEnforceByetrack)
-{
+    bool aEnforceByetrack) {
 
   // Check if LoadURI originated from Custom Tab; only then enforce byetrack logic
   if (!aEnforceByetrack) {
@@ -2026,8 +2029,7 @@ byetrack::ByetrackCookieDecision CookieService::DecideCookieAction(
   return { byetrack::ByetrackCookieAction::Reject, nullptr };
 }
 
-nsresult CookieService::StageTokenForReturn(nsIChannel* aChannel, byetrack::ByetrackToken* token, const nsACString& baseDomain,
-                                            const nsACString& aCookieName, const nsACString& aCookieValue, const nsACString& aCookieHeader) {
+nsresult CookieService::StageTokenForReturn(nsIChannel* aChannel, byetrack::ByetrackToken* token, const nsACString& baseDomain) {
   nsCOMPtr<nsILoadInfo> loadInfo = aChannel->LoadInfo();
 
   RefPtr<mozilla::dom::BrowsingContext> bc;
@@ -2035,35 +2037,17 @@ nsresult CookieService::StageTokenForReturn(nsIChannel* aChannel, byetrack::Byet
     //printf_stderr("Byetrack (CookieService): missing BrowsingContext; abort emit\n");
     return NS_ERROR_FAILURE; // treat as no tokens available (?)
   }
-  nsCString finalCookieHeader;
-  bc->GetByetrackFinalCookieHeader(finalCookieHeader);
 
-  // Build the cookie name=value pair for comparison
-  nsCString cookieNameValuePair;
-  cookieNameValuePair.Append(aCookieName);
-  cookieNameValuePair.AppendLiteral("=");
-  cookieNameValuePair.Append(aCookieValue);
-
-  // Check if token encoded token already exists in final tokens
-  if (finalCookieHeader.Find(cookieNameValuePair) != kNotFound) {
-    printf_stderr("[Byetrack] (CookieService) %s already stored by app => abort\n", cookieNameValuePair.BeginReading());
-    return NS_OK;
+  RefPtr<mozilla::net::HttpBaseChannel> hbc = do_QueryObject(aChannel);
+  if (!hbc) {
+    return NS_ERROR_FAILURE;
   }
-
-  // append to tokens to be sent back to app
-  nsCString filledPredefinedToReturn;
-  if (NS_FAILED(byetrack::TokenEncoder::EncodeEncryptedToken(*token, filledPredefinedToReturn))) {
-    return NS_ERROR_INVALID_ARG;
-  }
-
-  nsCOMPtr<nsIHttpChannelInternal> hci = do_QueryInterface(aChannel);
-  nsresult rv = hci->AddByetrackTokenToReturnForDomain(baseDomain, filledPredefinedToReturn);
+  nsresult rv = hbc->AddByetrackTokenToReturnForDomain(baseDomain, *token);
   if (NS_FAILED(rv)) {
     printf_stderr("[Byetrack] (CookieService) Failed to add predefined token to return: %08x\n", static_cast<uint32_t>(rv));
     return rv;
   }
 
-  printf_stderr("[Byetrack] (CookieService) Staged token for return: %s\n", aCookieHeader.BeginReading());
   return NS_OK;
 }
 

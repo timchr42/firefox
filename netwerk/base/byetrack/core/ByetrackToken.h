@@ -2,8 +2,8 @@
 #define DOM_SECURITY_BYETRACK_CORE_BYETRACKTOKEN_H_
 
 #include "nsString.h"
-#include "ByetrackTypes.h"
-#include "ByetrackConstants.h"
+#include "mozilla/byetrack/core/ByetrackTypes.h"
+#include "mozilla/byetrack/core/ByetrackConstants.h"
 
 namespace mozilla::byetrack {
 
@@ -14,8 +14,8 @@ class ByetrackToken {
 public:
   // Constructor
   ByetrackToken() = default;
-  
-  ByetrackToken(const nsACString& aDomain, 
+
+  ByetrackToken(const nsACString& aDomain,
                 const nsACString& aCookieName,
                 const nsACString& aCookieValue,
                 const nsACString& aPackageName,
@@ -45,7 +45,7 @@ public:
   }
 
   bool IsPredefined(const nsACString& aCookieName) const {
-    return cookieName.Equals(aCookieName) && 
+    return cookieName.Equals(aCookieName) &&
            cookieValue.Equals(token::WILDCARD_VALUE);
   }
 
@@ -60,7 +60,7 @@ public:
   }
 
   bool CanRead() const {
-    return accessRights == AccessRights::READ || 
+    return accessRights == AccessRights::READ ||
            accessRights == AccessRights::READ_WRITE;
   }
 
@@ -71,9 +71,9 @@ public:
 
   // Validation
   bool IsValid() const {
-    return !destinationDomain.IsEmpty() && 
-           !cookieName.IsEmpty() && 
-           !packageName.IsEmpty() && 
+    return !destinationDomain.IsEmpty() &&
+           !cookieName.IsEmpty() &&
+           !packageName.IsEmpty() &&
            !versionName.IsEmpty();
   }
 
