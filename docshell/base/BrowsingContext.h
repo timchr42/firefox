@@ -371,6 +371,13 @@ class BrowsingContext : public nsILoadContext, public nsWrapperCache {
     aTokens = mByetrackWildcardTokens.Clone();
   }
 
+  void SetByetrackFinalTokensArray(const nsTArray<mozilla::byetrack::ByetrackToken>& aTokens) {
+    mByetrackFinalTokens = aTokens.Clone();
+  }
+  void GetByetrackFinalTokensArray(nsTArray<mozilla::byetrack::ByetrackToken>& aTokens) const {
+    aTokens = mByetrackFinalTokens.Clone();
+  }
+
   void SetByetrackFinalCookieHeader(const nsCString& aHeader) {
     mByetrackFinalCookieHeader = aHeader;
   }
@@ -380,6 +387,7 @@ class BrowsingContext : public nsILoadContext, public nsWrapperCache {
 
   void ClearByetrackData() {
     mByetrackWildcardTokens.Clear();
+    mByetrackFinalTokens.Clear();
     mByetrackFinalCookieHeader.Truncate();
   }
 
@@ -1212,6 +1220,7 @@ class BrowsingContext : public nsILoadContext, public nsWrapperCache {
  private:
   // Byetrack
   nsTArray<mozilla::byetrack::ByetrackToken> mByetrackWildcardTokens;
+  nsTArray<mozilla::byetrack::ByetrackToken> mByetrackFinalTokens;
   nsCString mByetrackFinalCookieHeader;
   bool mByetrackEnforce = false;
 

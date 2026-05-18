@@ -134,8 +134,7 @@ class CookieService final : public nsICookieService,
                                       const OriginAttributesPattern& aPattern);
 
   // BYETRACK
-  nsresult StageTokenForReturn(nsIChannel* aChannel, byetrack::ByetrackToken* token, const nsACString& baseDomain, 
-                               const nsACString& aCookieName, const nsACString& aCookieValue, const nsACString& aCookieHeader);
+  nsresult StageTokenForReturn(nsIChannel* aChannel, byetrack::ByetrackToken* token, const nsACString& baseDomain);
   byetrack::ByetrackCookieDecision DecideCookieAction(const nsACString& aCookieName,
                                                       nsTArray<byetrack::ByetrackToken>& aTokens,
                                                       const nsACString& baseDomain,

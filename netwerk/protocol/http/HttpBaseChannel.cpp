@@ -113,6 +113,7 @@
 #include "mozilla/dom/ContentChild.h"
 #include "nsQueryObject.h"
 #include "mozilla/byetrack/core/ByetrackToken.h"
+#include "mozilla/byetrack/codec/ByetrackTokenEncoder.h"
 
 using mozilla::dom::ForceMediaDocument;
 
@@ -5569,25 +5570,22 @@ HttpBaseChannel::SetMatchedTrackingInfo(
   return NS_OK;
 }
 
-NS_IMETHODIMP
-HttpBaseChannel::AddByetrackTokenToReturn(const nsACString& aToken) {
+nsresult HttpBaseChannel::AddByetrackTokenToReturn(const byetrack::ByetrackToken& aToken) {
   // For backward compatibility, add to empty domain key
-  nsTArray<nsCString>& tokens = mByetrackTokensToReturn.LookupOrInsert(""_ns);
+  nsTArray<byetrack::ByetrackToken>& tokens = mByetrackTokensToReturn.LookupOrInsert(""_ns);
   tokens.AppendElement(aToken);
   return NS_OK;
 }
 
-NS_IMETHODIMP
-HttpBaseChannel::AddByetrackTokenToReturnForDomain(const nsACString& aDomain, const nsACString& aToken) {
+nsresult HttpBaseChannel::AddByetrackTokenToReturnForDomain(const nsACString& aDomain, const byetrack::ByetrackToken& aToken) {
   // Get or create the token array for this domain
-  printf_stderr("Byetrack (hbc): Adding token for domain '%s': '%s'\n", PromiseFlatCString(aDomain).get(), PromiseFlatCString(aToken).get());
-  nsTArray<nsCString>& tokens = mByetrackTokensToReturn.LookupOrInsert(aDomain);
+  //printf_stderr("Byetrack (hbc): Adding token for domain '%s': '%s'\n", PromiseFlatCString(aDomain).get(), PromiseFlatCString(aToken).get());
+  nsTArray<byetrack::ByetrackToken>& tokens = mByetrackTokensToReturn.LookupOrInsert(aDomain);
   tokens.AppendElement(aToken);
   return NS_OK;
 }
 
-NS_IMETHODIMP
-HttpBaseChannel::TakeByetrackTokensToReturn(nsTArray<nsCString>* aOut) {
+nsresult HttpBaseChannel::TakeByetrackTokensToReturn(nsTArray<byetrack::ByetrackToken>* aOut) {
   // For backward compatibility, take from empty domain key
   if (auto tokens = mByetrackTokensToReturn.Extract(""_ns)) {
     *aOut = std::move(tokens.ref());
@@ -5597,8 +5595,7 @@ HttpBaseChannel::TakeByetrackTokensToReturn(nsTArray<nsCString>* aOut) {
   return NS_OK;
 }
 
-NS_IMETHODIMP
-HttpBaseChannel::TakeByetrackTokensToReturnForDomain(const nsACString& aDomain, nsTArray<nsCString>* aOut) {
+nsresult HttpBaseChannel::TakeByetrackTokensToReturnForDomain(const nsACString& aDomain, nsTArray<byetrack::ByetrackToken>* aOut) {
   // Look up and remove the tokens for this specific domain
   // Extract() automatically removes the entry from the map after returning it
   if (auto tokens = mByetrackTokensToReturn.Extract(aDomain)) {
@@ -7025,6 +7022,36 @@ void HttpBaseChannel::SetFetchPriorityDOM(
   }
 }
 
+nsresult HttpBaseChannel::CheckByetrackTokensToReturn() {
+  RefPtr<mozilla::dom::BrowsingContext> bc;
+  if (NS_FAILED(mLoadInfo->GetBrowsingContext(getter_AddRefs(bc)))) {
+    return NS_ERROR_FAILURE;
+  }
+
+  nsTArray<byetrack::ByetrackToken> finalTokens;
+  bc->GetByetrackFinalTokensArray(finalTokens);
+
+  for (const auto& appToken : finalTokens) {
+    // Check if server already added an updated version of this cookie
+    bool serverUpdated = false;
+    if (auto serverTokens = mByetrackTokensToReturn.Lookup(appToken.destinationDomain)) {
+      for (const auto& serverToken : *serverTokens) {
+        if (serverToken.cookieName.Equals(appToken.cookieName)) {
+          serverUpdated = true;
+          break;
+        }
+      }
+    }
+
+    if (!serverUpdated) {
+      // Server did not touch this cookie -> carry it over as-is
+      AddByetrackTokenToReturnForDomain(appToken.destinationDomain, appToken);
+    }
+  }
+
+  return NS_OK;
+}
+
 // BYETRACK: Helper to emit tokens to GeckoView bridge
 void HttpBaseChannel::EmitByetrackTokensToGeckoView() {
   //printf_stderr("Byetrack (hbc) EmitByetrackTokensToGeckoView called\n");
@@ -7038,6 +7065,14 @@ void HttpBaseChannel::EmitByetrackTokensToGeckoView() {
     return;
   }
 
+  // AddByetrackTokenToReturn includes all tokens received from server now
+  // Check, if final tokens received from app contains cookies that were
+  // not updated / not touched at all
+  nsresult rv = CheckByetrackTokensToReturn();
+  if (NS_FAILED(rv)) {
+    return;
+  }
+
   // Convert tokens map to JSON similar to Java version
   // Creates JSON like: {"domain1": ["token1", "token2"], "domain2": ["token3"]}
   JSONStringWriteFunc<nsAutoCString> jsonOutput;
@@ -7048,7 +7083,7 @@ void HttpBaseChannel::EmitByetrackTokensToGeckoView() {
   // Iterate over all domains and their tokens
   for (auto iter = mByetrackTokensToReturn.Iter(); !iter.Done(); iter.Next()) {
     const nsACString& domain = iter.Key();
-    nsTArray<nsCString>& tokens = iter.Data();
+    nsTArray<byetrack::ByetrackToken>& tokens = iter.Data();
 
     if (tokens.IsEmpty()) {
       continue;
@@ -7062,7 +7097,14 @@ void HttpBaseChannel::EmitByetrackTokensToGeckoView() {
 
     // Add all tokens for this domain
     for (const auto& token : tokens) {
-      writer.StringElement(mozilla::Span<const char>(token.get(), token.Length()));
+      nsCString encodedToken;
+      if (NS_FAILED(byetrack::TokenEncoder::EncodeEncryptedToken(token, encodedToken))) {
+        printf_stderr("[Byetrack] (hbc): Failed to encode token for domain '%s', cookie '%s' -> skipping\n",
+                      PromiseFlatCString(domain).get(),
+                      token.cookieName.BeginReading());
+        continue;
+      }
+      writer.StringElement(mozilla::Span<const char>(encodedToken.get(), encodedToken.Length()));
     }
 
     writer.EndArray();
