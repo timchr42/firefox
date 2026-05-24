@@ -12,7 +12,7 @@ namespace mozilla::byetrack {
 
 nsresult TokenEncoder::EncodeToken(const ByetrackToken& aToken,
                                   nsACString& aOutEncodedToken) {
-  printf_stderr("Byetrack (Encoder) Encoding token for domain: %s\n", 
+  printf_stderr("Byetrack (Encoder) Encoding token for domain: %s\n",
                 aToken.destinationDomain.BeginReading());
 
   // Convert token to JSON
@@ -67,7 +67,7 @@ nsresult TokenEncoder::EncodeToken(const ByetrackToken& aToken,
 
 nsresult TokenEncoder::EncodeEncryptedToken(const ByetrackToken& aToken,
                                            nsACString& aOutEncryptedToken) {
-  printf_stderr("Byetrack (Encoder) Encrypting token for domain: %s\n", 
+  printf_stderr("Byetrack (Encoder) Encrypting token for domain: %s\n",
                 aToken.destinationDomain.BeginReading());
 
   // First encode the token normally
@@ -186,18 +186,18 @@ nsresult TokenEncoder::GetCookieHeader(const nsTArray<ByetrackToken>& aTokens,
     return NS_OK;
   }
 
-  printf_stderr("Byetrack (Encoder) Generating cookie header for %d tokens\n", 
+  printf_stderr("Byetrack (Encoder) Generating cookie header for %d tokens\n",
                 (int)aTokens.Length());
 
   aOutHeader.Truncate();
-  
+
   for (uint32_t i = 0; i < aTokens.Length(); i++) {
     const ByetrackToken& token = aTokens[i];
-    
+
     if (i > 0) {
       aOutHeader.AppendLiteral("; ");
     }
-    
+
     aOutHeader.Append(token.cookieName);
     aOutHeader.AppendLiteral("=");
     aOutHeader.Append(token.cookieValue);
@@ -207,66 +207,91 @@ nsresult TokenEncoder::GetCookieHeader(const nsTArray<ByetrackToken>& aTokens,
   return NS_OK;
 }
 
-nsresult TokenEncoder::TokenToJson(const ByetrackToken& aToken,
-                                  nsACString& aOutJson) {
-  // Get JS context for JSON creation
-  dom::AutoJSAPI jsapi;
-  if (!jsapi.Init(xpc::PrivilegedJunkScope())) {
-    return NS_ERROR_FAILURE;
+nsresult TokenEncoder::TokenToJson(const ByetrackToken& aToken, nsACString& aOutJson) {
+  aOutJson.Truncate();
+  aOutJson.AppendLiteral("{");
+  aOutJson.AppendLiteral("\"access_rights\":\"");
+  aOutJson.Append(nsDependentCString(AccessRightsToString(aToken.accessRights)));
+  aOutJson.AppendLiteral("\",\"application_id\":\"");
+  aOutJson.Append(aToken.packageName);
+  aOutJson.AppendLiteral("\",\"cookie_name\":\"");
+  aOutJson.Append(aToken.cookieName);
+  aOutJson.AppendLiteral("\",\"cookie_value\":\"");
+  aOutJson.Append(aToken.cookieValue);
+  aOutJson.AppendLiteral("\",\"destination_domain\":\"");
+  aOutJson.Append(aToken.destinationDomain);
+  aOutJson.AppendLiteral("\",\"version_name\":\"");
+  aOutJson.Append(aToken.versionName);
+  aOutJson.AppendLiteral("\"global_jar\":");
+  if (aToken.globalJar) {
+    aOutJson.AppendLiteral("true");
+  } else {
+    aOutJson.AppendLiteral("false");
   }
-  JSContext* cx = jsapi.cx();
-
-  // Create JSON object with deterministic field ordering (for consistent signatures)
-  JS::Rooted<JSObject*> obj(cx, JS_NewPlainObject(cx));
-  if (!obj) {
-    return NS_ERROR_FAILURE;
-  }
-
-  // Helper to set string property
-  auto setStringProp = [&](const char* name, const nsACString& value) -> bool {
-    NS_ConvertUTF8toUTF16 utf16Value(value);
-    JS::Rooted<JSString*> jsStr(cx, JS_NewUCStringCopyZ(cx, utf16Value.BeginReading()));
-    if (!jsStr) return false;
-    JS::Rooted<JS::Value> jsVal(cx, JS::StringValue(jsStr));
-    return JS_SetProperty(cx, obj, name, jsVal);
-  };
-
-  // Set properties in alphabetical order for consistency
-  if (!setStringProp(json::ACCESS_RIGHTS, nsDependentCString(AccessRightsToString(aToken.accessRights))) ||
-      !setStringProp(json::APPLICATION_ID, aToken.packageName) ||
-      !setStringProp(json::COOKIE_NAME, aToken.cookieName) ||
-      !setStringProp(json::COOKIE_VALUE, aToken.cookieValue) ||
-      !setStringProp(json::DESTINATION_DOMAIN, aToken.destinationDomain) ||
-      !setStringProp(json::VERSION_NAME, aToken.versionName)) {
-    return NS_ERROR_FAILURE;
-  }
-
-  // Set boolean property
-  JS::Rooted<JS::Value> globalJarVal(cx, JS::BooleanValue(aToken.globalJar));
-  if (!JS_SetProperty(cx, obj, json::GLOBAL_JAR, globalJarVal)) {
-    return NS_ERROR_FAILURE;
-  }
-
-  // Convert to JSON string using a different approach
-  JS::Rooted<JS::Value> objVal(cx, JS::ObjectValue(*obj));
-  
-  // Use a string buffer to collect the JSON output
-  nsTArray<char16_t> buffer;
-  
-  // Define a proper callback function that matches JSONWriteCallback signature  
-  auto writeCallback = [](const char16_t* buf, uint32_t len, void* data) -> bool {
-    nsTArray<char16_t>* buffer = static_cast<nsTArray<char16_t>*>(data);
-    return buffer->AppendElements(buf, len, fallible);
-  };
-  
-  if (!JS_Stringify(cx, &objVal, nullptr, JS::NullHandleValue, writeCallback, &buffer)) {
-    return NS_ERROR_FAILURE;
-  }
-  
-  // Convert buffer to string
-  nsString jsonString(buffer.Elements(), buffer.Length());
-  aOutJson = NS_ConvertUTF16toUTF8(jsonString);
+  aOutJson.AppendLiteral("}");
   return NS_OK;
 }
+
+//nsresult TokenEncoder::TokenToJson(const ByetrackToken& aToken,
+//                                  nsACString& aOutJson) {
+//  // Get JS context for JSON creation
+//  dom::AutoJSAPI jsapi;
+//  if (!jsapi.Init(xpc::PrivilegedJunkScope())) {
+//    return NS_ERROR_FAILURE;
+//  }
+//  JSContext* cx = jsapi.cx();
+//
+//  // Create JSON object with deterministic field ordering (for consistent signatures)
+//  JS::Rooted<JSObject*> obj(cx, JS_NewPlainObject(cx));
+//  if (!obj) {
+//    return NS_ERROR_FAILURE;
+//  }
+//
+//  // Helper to set string property
+//  auto setStringProp = [&](const char* name, const nsACString& value) -> bool {
+//    NS_ConvertUTF8toUTF16 utf16Value(value);
+//    JS::Rooted<JSString*> jsStr(cx, JS_NewUCStringCopyZ(cx, utf16Value.BeginReading()));
+//    if (!jsStr) return false;
+//    JS::Rooted<JS::Value> jsVal(cx, JS::StringValue(jsStr));
+//    return JS_SetProperty(cx, obj, name, jsVal);
+//  };
+//
+//  // Set properties in alphabetical order for consistency
+//  if (!setStringProp(json::ACCESS_RIGHTS, nsDependentCString(AccessRightsToString(aToken.accessRights))) ||
+//      !setStringProp(json::APPLICATION_ID, aToken.packageName) ||
+//      !setStringProp(json::COOKIE_NAME, aToken.cookieName) ||
+//      !setStringProp(json::COOKIE_VALUE, aToken.cookieValue) ||
+//      !setStringProp(json::DESTINATION_DOMAIN, aToken.destinationDomain) ||
+//      !setStringProp(json::VERSION_NAME, aToken.versionName)) {
+//    return NS_ERROR_FAILURE;
+//  }
+//
+//  // Set boolean property
+//  JS::Rooted<JS::Value> globalJarVal(cx, JS::BooleanValue(aToken.globalJar));
+//  if (!JS_SetProperty(cx, obj, json::GLOBAL_JAR, globalJarVal)) {
+//    return NS_ERROR_FAILURE;
+//  }
+//
+//  // Convert to JSON string using a different approach
+//  JS::Rooted<JS::Value> objVal(cx, JS::ObjectValue(*obj));
+//
+//  // Use a string buffer to collect the JSON output
+//  nsTArray<char16_t> buffer;
+//
+//  // Define a proper callback function that matches JSONWriteCallback signature
+//  auto writeCallback = [](const char16_t* buf, uint32_t len, void* data) -> bool {
+//    nsTArray<char16_t>* buffer = static_cast<nsTArray<char16_t>*>(data);
+//    return buffer->AppendElements(buf, len, fallible);
+//  };
+//
+//  if (!JS_Stringify(cx, &objVal, nullptr, JS::NullHandleValue, writeCallback, &buffer)) {
+//    return NS_ERROR_FAILURE;
+//  }
+//
+//  // Convert buffer to string
+//  nsString jsonString(buffer.Elements(), buffer.Length());
+//  aOutJson = NS_ConvertUTF16toUTF8(jsonString);
+//  return NS_OK;
+//}
 
 } // namespace mozilla::byetrack

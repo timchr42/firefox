@@ -7037,7 +7037,7 @@ nsresult HttpBaseChannel::CheckByetrackTokensToReturn() {
     if (auto serverTokens = mByetrackTokensToReturn.Lookup(appToken.destinationDomain)) {
       for (const auto& serverToken : *serverTokens) {
         if (serverToken.cookieName.Equals(appToken.cookieName)) {
-          serverUpdated = true;
+          serverUpdated = true; // also if deleted
           break;
         }
       }
@@ -7097,13 +7097,28 @@ void HttpBaseChannel::EmitByetrackTokensToGeckoView() {
 
     // Add all tokens for this domain
     for (const auto& token : tokens) {
-      nsCString encodedToken;
-      if (NS_FAILED(byetrack::TokenEncoder::EncodeEncryptedToken(token, encodedToken))) {
-        printf_stderr("[Byetrack] (hbc): Failed to encode token for domain '%s', cookie '%s' -> skipping\n",
-                      PromiseFlatCString(domain).get(),
-                      token.cookieName.BeginReading());
-        continue;
+      if (token.IsDeleted()) {
+          printf_stderr("[Byetrack] (hbc): Skipping deleted token for cookie '%s'\n",
+                        token.cookieName.BeginReading());
+          continue;
       }
+
+      nsCString encodedToken;
+      if (token.HasCachedEncoded()) {
+        // Reuse encoded token if it already carries an encryption
+        // Does so if not received from server, but from app (untouched from
+        // server)
+        encodedToken = token.GetCachedEncoded();
+        __android_log_print(ANDROID_LOG_INFO, "ByeTrack", "(hbc) Reusing Cached Tokens");
+      } else {
+        if (NS_FAILED(byetrack::TokenEncoder::EncodeEncryptedToken(token, encodedToken))) {
+          // skip if error
+          printf_stderr("[Byetrack] (hbc): Failed to encode token for domain '%s', cookie '%s' -> skipping\n",
+                        PromiseFlatCString(domain).get(),
+                        token.cookieName.BeginReading());
+          continue;
+      }
+
       writer.StringElement(mozilla::Span<const char>(encodedToken.get(), encodedToken.Length()));
     }
 

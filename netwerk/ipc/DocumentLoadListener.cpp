@@ -176,6 +176,8 @@ static void ProcessTokenBlob(const nsACString& aTokenBlob, const nsACString& pac
       continue;
     }
 
+    // cache token encryption
+    token.SetCachedEncoded(tokenStr);
     aTokens.AppendElement(token);
     printf_stderr("Byetrack (Listener) Successfully added token for domain: %s\n",
                   token.destinationDomain.BeginReading());

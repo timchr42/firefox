@@ -39,7 +39,26 @@ public:
   AccessRights accessRights = AccessRights::NONE;
   bool globalJar = false;
 
+  nsCString cachedEncodedToken;
+
   // Utility methods
+
+  bool HasCachedEncoded() const {
+    return !cachedEncodedToken.IsEmpty();
+  }
+
+  void SetCachedEncoded(const nsACString& aEncoded) {
+    cachedEncodedToken = aEncoded;
+  }
+
+  const nsCString& GetCachedEncoded() const {
+    return cachedEncodedToken;
+  }
+
+  bool IsDeleted() const {
+    return cookieName.IsEmpty();
+  }
+
   bool IsWildcard() const {
     return cookieName.Equals(token::WILDCARD_VALUE);
   }
