@@ -222,7 +222,7 @@ nsresult TokenEncoder::TokenToJson(const ByetrackToken& aToken, nsACString& aOut
   aOutJson.Append(aToken.destinationDomain);
   aOutJson.AppendLiteral("\",\"version_name\":\"");
   aOutJson.Append(aToken.versionName);
-  aOutJson.AppendLiteral("\"global_jar\":");
+  aOutJson.AppendLiteral("\",\"global_jar\":");
   if (aToken.globalJar) {
     aOutJson.AppendLiteral("true");
   } else {

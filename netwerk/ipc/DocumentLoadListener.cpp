@@ -73,10 +73,10 @@
 #include "mozilla/intl/Localization.h"
 #include "nsDocLoader.h"  // for FormatStatusMessage
 
-#include "../base/byetrack/core/ByetrackToken.h"
-#include "../base/byetrack/codec/ByetrackTokenParser.h"
-#include "../base/byetrack/codec/ByetrackTokenValidator.h"
-#include "../base/byetrack/codec/ByetrackTokenEncoder.h"
+#include "mozilla/byetrack/core/ByetrackToken.h"
+#include "mozilla/byetrack/codec/ByetrackTokenParser.h"
+#include "mozilla/byetrack/codec/ByetrackTokenValidator.h"
+#include "mozilla/byetrack/codec/ByetrackTokenEncoder.h"
 
 
 using mozilla::byetrack::ByetrackToken;
