@@ -2,10 +2,10 @@
 #include "crypto/ByetrackCrypto.h"
 #include "utils/ByetrackBase64Utils.h"
 #include "core/ByetrackConstants.h"
-#include "js/JSON.h"
-#include "mozilla/dom/ScriptSettings.h"
-#include "xpcpublic.h"
-#include "nsJSUtils.h"
+//#include "js/JSON.h"
+//#include "mozilla/dom/ScriptSettings.h"
+//#include "xpcpublic.h"
+//#include "nsJSUtils.h"
 #include <string_view>
 
 namespace mozilla::byetrack {

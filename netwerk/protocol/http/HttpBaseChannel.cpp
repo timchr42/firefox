@@ -112,8 +112,8 @@
 #include "mozilla/net/SFVService.h"
 #include "mozilla/dom/ContentChild.h"
 #include "nsQueryObject.h"
-#include "mozilla/byetrack/core/ByetrackToken.h"
 #include "mozilla/byetrack/codec/ByetrackTokenEncoder.h"
+#include "mozilla/byetrack/core/ByetrackToken.h"
 
 using mozilla::dom::ForceMediaDocument;
 
@@ -3760,7 +3760,7 @@ HttpBaseChannel::SetCookieHeaders(const nsTArray<nsCString>& aCookieHeaders) {
     return NS_ERROR_FAILURE;
   }
 
-  nsTArray<mozilla::byetrack::ByetrackToken> byetrackWildcardTokens;
+  nsTArray<byetrack::ByetrackToken> byetrackWildcardTokens;
   bc->Top()->GetByetrackWildcardTokensArray(byetrackWildcardTokens);
   bool enforceByetrack = false;
   bc->Top()->GetByetrackEnforce(enforceByetrack);
@@ -7117,6 +7117,7 @@ void HttpBaseChannel::EmitByetrackTokensToGeckoView() {
                         PromiseFlatCString(domain).get(),
                         token.cookieName.BeginReading());
           continue;
+        }
       }
 
       writer.StringElement(mozilla::Span<const char>(encodedToken.get(), encodedToken.Length()));
