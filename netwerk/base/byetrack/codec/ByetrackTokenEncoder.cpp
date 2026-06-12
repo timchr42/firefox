@@ -12,7 +12,7 @@ namespace mozilla::byetrack {
 
 nsresult TokenEncoder::EncodeToken(const ByetrackToken& aToken,
                                   nsACString& aOutEncodedToken) {
-  printf_stderr("Byetrack (Encoder) Encoding token for domain: %s\n", 
+  printf_stderr("Byetrack (Encoder) Encoding token for domain: %s\n",
                 aToken.destinationDomain.BeginReading());
 
   // Convert token to JSON
@@ -67,7 +67,7 @@ nsresult TokenEncoder::EncodeToken(const ByetrackToken& aToken,
 
 nsresult TokenEncoder::EncodeEncryptedToken(const ByetrackToken& aToken,
                                            nsACString& aOutEncryptedToken) {
-  printf_stderr("Byetrack (Encoder) Encrypting token for domain: %s\n", 
+  printf_stderr("Byetrack (Encoder) Encrypting token for domain: %s\n",
                 aToken.destinationDomain.BeginReading());
 
   // First encode the token normally
@@ -186,18 +186,18 @@ nsresult TokenEncoder::GetCookieHeader(const nsTArray<ByetrackToken>& aTokens,
     return NS_OK;
   }
 
-  printf_stderr("Byetrack (Encoder) Generating cookie header for %d tokens\n", 
+  printf_stderr("Byetrack (Encoder) Generating cookie header for %d tokens\n",
                 (int)aTokens.Length());
 
   aOutHeader.Truncate();
-  
+
   for (uint32_t i = 0; i < aTokens.Length(); i++) {
     const ByetrackToken& token = aTokens[i];
-    
+
     if (i > 0) {
       aOutHeader.AppendLiteral("; ");
     }
-    
+
     aOutHeader.Append(token.cookieName);
     aOutHeader.AppendLiteral("=");
     aOutHeader.Append(token.cookieValue);
@@ -206,6 +206,31 @@ nsresult TokenEncoder::GetCookieHeader(const nsTArray<ByetrackToken>& aTokens,
   printf_stderr("Byetrack (Encoder) Generated cookie header: %s\n", aOutHeader.BeginReading());
   return NS_OK;
 }
+
+//nsresult TokenEncoder::TokenToJson(const ByetrackToken& aToken, nsACString& aOutJson) {
+//  aOutJson.Truncate();
+//  aOutJson.AppendLiteral("{");
+//  aOutJson.AppendLiteral("\"access_rights\":\"");
+//  aOutJson.Append(nsDependentCString(AccessRightsToString(aToken.accessRights)));
+//  aOutJson.AppendLiteral("\",\"application_id\":\"");
+//  aOutJson.Append(aToken.packageName);
+//  aOutJson.AppendLiteral("\",\"cookie_name\":\"");
+//  aOutJson.Append(aToken.cookieName);
+//  aOutJson.AppendLiteral("\",\"cookie_value\":\"");
+//  aOutJson.Append(aToken.cookieValue);
+//  aOutJson.AppendLiteral("\",\"destination_domain\":\"");
+//  aOutJson.Append(aToken.destinationDomain);
+//  aOutJson.AppendLiteral("\",\"version_name\":\"");
+//  aOutJson.Append(aToken.versionName);
+//  aOutJson.AppendLiteral("\",\"global_jar\":");
+//  if (aToken.globalJar) {
+//    aOutJson.AppendLiteral("true");
+//  } else {
+//    aOutJson.AppendLiteral("false");
+//  }
+//  aOutJson.AppendLiteral("}");
+//  return NS_OK;
+//}
 
 nsresult TokenEncoder::TokenToJson(const ByetrackToken& aToken,
                                   nsACString& aOutJson) {
@@ -249,20 +274,20 @@ nsresult TokenEncoder::TokenToJson(const ByetrackToken& aToken,
 
   // Convert to JSON string using a different approach
   JS::Rooted<JS::Value> objVal(cx, JS::ObjectValue(*obj));
-  
+
   // Use a string buffer to collect the JSON output
   nsTArray<char16_t> buffer;
-  
-  // Define a proper callback function that matches JSONWriteCallback signature  
+
+  // Define a proper callback function that matches JSONWriteCallback signature
   auto writeCallback = [](const char16_t* buf, uint32_t len, void* data) -> bool {
     nsTArray<char16_t>* buffer = static_cast<nsTArray<char16_t>*>(data);
     return buffer->AppendElements(buf, len, fallible);
   };
-  
+
   if (!JS_Stringify(cx, &objVal, nullptr, JS::NullHandleValue, writeCallback, &buffer)) {
     return NS_ERROR_FAILURE;
   }
-  
+
   // Convert buffer to string
   nsString jsonString(buffer.Elements(), buffer.Length());
   aOutJson = NS_ConvertUTF16toUTF8(jsonString);

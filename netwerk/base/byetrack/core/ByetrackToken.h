@@ -39,7 +39,28 @@ public:
   AccessRights accessRights = AccessRights::NONE;
   bool globalJar = false;
 
+  nsCString cachedEncodedToken;
+
   // Utility methods
+
+  bool HasCachedEncoded() const {
+    return !cachedEncodedToken.IsEmpty();
+  }
+
+  void SetCachedEncoded(const nsACString& aEncoded) {
+    if (!cachedEncodedToken.Equals(aEncoded)) {
+      cachedEncodedToken = aEncoded;
+    }
+  }
+
+  const nsCString& GetCachedEncoded() const {
+    return cachedEncodedToken;
+  }
+
+  bool IsDeleted() const {
+    return cookieName.IsEmpty();
+  }
+
   bool IsWildcard() const {
     return cookieName.Equals(token::WILDCARD_VALUE);
   }
@@ -100,19 +121,32 @@ public:
 
   // Setters with validation
   void SetCookieName(const nsACString& aName) {
+    if (!cookieName.Equals(aName)) {
+      cachedEncodedToken.Truncate();  // content changed -> cache is stale
+    }
     cookieName = aName;
   }
 
   void SetCookieValue(const nsACString& aValue) {
+    if (!cookieValue.Equals(aValue)) {
+      cachedEncodedToken.Truncate();  // content changed -> cache is stale
+    }
     cookieValue = aValue;
   }
 
   void SetAccessRights(AccessRights aRights) {
+    if (accessRights != aRights) {
+      cachedEncodedToken.Truncate();  // content changed -> cache is stale
+    }
     accessRights = aRights;
   }
 
   void SetAccessRights(const nsACString& aRightsStr) {
-    accessRights = StringToAccessRights(aRightsStr);
+    AccessRights parsed = StringToAccessRights(aRightsStr);
+    if (accessRights != parsed) {
+      cachedEncodedToken.Truncate();
+    }
+    accessRights = parsed;
   }
 
   // Legacy compatibility - will be removed after refactoring

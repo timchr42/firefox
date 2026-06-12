@@ -77,10 +77,10 @@
 #include <chrono>
 using namespace std::chrono;
 
-#include "../base/byetrack/core/ByetrackToken.h"
-#include "../base/byetrack/codec/ByetrackTokenParser.h"
-#include "../base/byetrack/codec/ByetrackTokenValidator.h"
-#include "../base/byetrack/codec/ByetrackTokenEncoder.h"
+#include "mozilla/byetrack/core/ByetrackToken.h"
+#include "mozilla/byetrack/codec/ByetrackTokenParser.h"
+#include "mozilla/byetrack/codec/ByetrackTokenValidator.h"
+#include "mozilla/byetrack/codec/ByetrackTokenEncoder.h"
 
 
 using mozilla::byetrack::ByetrackToken;
@@ -180,6 +180,9 @@ static void ProcessTokenBlob(const nsACString& aTokenBlob, const nsACString& pac
       continue;
     }
 
+    // cache token encryption
+    token.SetCachedEncoded(tokenStr);
+    __android_log_print(ANDROID_LOG_INFO, "Token Cache Init: %s", tokenStr.get());
     aTokens.AppendElement(token);
     printf_stderr("Byetrack (Listener) Successfully added token for domain: %s\n",
                   token.destinationDomain.BeginReading());
