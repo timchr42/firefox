@@ -48,7 +48,9 @@ public:
   }
 
   void SetCachedEncoded(const nsACString& aEncoded) {
-    cachedEncodedToken = aEncoded;
+    if (!cachedEncodedToken.Equals(aEncoded)) {
+      cachedEncodedToken = aEncoded;
+    }
   }
 
   const nsCString& GetCachedEncoded() const {
@@ -119,19 +121,32 @@ public:
 
   // Setters with validation
   void SetCookieName(const nsACString& aName) {
+    if (!cookieName.Equals(aName)) {
+      cachedEncodedToken.Truncate();  // content changed -> cache is stale
+    }
     cookieName = aName;
   }
 
   void SetCookieValue(const nsACString& aValue) {
+    if (!cookieValue.Equals(aValue)) {
+      cachedEncodedToken.Truncate();  // content changed -> cache is stale
+    }
     cookieValue = aValue;
   }
 
   void SetAccessRights(AccessRights aRights) {
+    if (accessRights != aRights) {
+      cachedEncodedToken.Truncate();  // content changed -> cache is stale
+    }
     accessRights = aRights;
   }
 
   void SetAccessRights(const nsACString& aRightsStr) {
-    accessRights = StringToAccessRights(aRightsStr);
+    AccessRights parsed = StringToAccessRights(aRightsStr);
+    if (accessRights != parsed) {
+      cachedEncodedToken.Truncate();
+    }
+    accessRights = parsed;
   }
 
   // Legacy compatibility - will be removed after refactoring

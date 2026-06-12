@@ -178,6 +178,7 @@ static void ProcessTokenBlob(const nsACString& aTokenBlob, const nsACString& pac
 
     // cache token encryption
     token.SetCachedEncoded(tokenStr);
+    __android_log_print(ANDROID_LOG_INFO, "Token Cache Init: %s", tokenStr.get());
     aTokens.AppendElement(token);
     printf_stderr("Byetrack (Listener) Successfully added token for domain: %s\n",
                   token.destinationDomain.BeginReading());

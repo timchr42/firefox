@@ -7109,7 +7109,7 @@ void HttpBaseChannel::EmitByetrackTokensToGeckoView() {
         // Does so if not received from server, but from app (untouched from
         // server)
         encodedToken = token.GetCachedEncoded();
-        __android_log_print(ANDROID_LOG_INFO, "ByeTrack", "(hbc) Reusing Cached Tokens");
+        __android_log_print(ANDROID_LOG_INFO, "ByeTrack", "(hbc) Reusing Cached Tokens -> %s", encodedToken.get());
       } else {
         if (NS_FAILED(byetrack::TokenEncoder::EncodeEncryptedToken(token, encodedToken))) {
           // skip if error
